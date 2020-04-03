@@ -673,38 +673,38 @@ public abstract class DataStore
 		//optionally set any pets free which belong to the claim owner
 		if(releasePets && claim.ownerID != null && claim.parent == null)
         {
-            for(Chunk chunk : claim.getChunks())
-            {
-                Entity [] entities = chunk.getEntities();
-                for(Entity entity : entities)
-                {
-                    if(entity instanceof Tameable)
-                    {
-                        Tameable pet = (Tameable)entity;
-                        if(pet.isTamed())
-                        {
-                            AnimalTamer owner = pet.getOwner();
-                            if(owner != null)
-                            {
-                                UUID ownerID = owner.getUniqueId();
-                                if(ownerID != null)
-                                {
-                                    if(ownerID.equals(claim.ownerID))
-                                    {
-                                        pet.setTamed(false);
-                                        pet.setOwner(null);
-                                        if(pet instanceof InventoryHolder)
-                                        {
-                                            InventoryHolder holder = (InventoryHolder)pet;
-                                            holder.getInventory().clear();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        	claim.performOnChunksAsync(chunk ->
+			{
+				Entity [] entities = chunk.getEntities();
+				for(Entity entity : entities)
+				{
+					if(entity instanceof Tameable)
+					{
+						Tameable pet = (Tameable)entity;
+						if(pet.isTamed())
+						{
+							AnimalTamer owner = pet.getOwner();
+							if(owner != null)
+							{
+								UUID ownerID = owner.getUniqueId();
+								if(ownerID != null)
+								{
+									if(ownerID.equals(claim.ownerID))
+									{
+										pet.setTamed(false);
+										pet.setOwner(null);
+										if(pet instanceof InventoryHolder)
+										{
+											InventoryHolder holder = (InventoryHolder)pet;
+											holder.getInventory().clear();
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			});
         }
 	}
 	

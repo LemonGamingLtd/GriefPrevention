@@ -29,7 +29,10 @@
             <id>essx-repo</id>
             <url>https://ci.ender.zone/plugin/repository/everything/</url>
         </repository>
-
+        <repository>
+            <id>papermc</id>
+            <url>https://papermc.io/repo/repository/maven-public/</url>
+        </repository>
     </repositories>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
@@ -63,6 +66,20 @@
                             <goal>revision</goal>
                         </goals>
                         <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <id>shade</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
@@ -113,6 +130,13 @@
                         <artifactId>bukkit</artifactId>
                     </exclusion>
                 </exclusions>
+        </dependency>
+        <!--PaperLib dependency-->
+        <dependency>
+            <groupId>io.papermc</groupId>
+            <artifactId>paperlib</artifactId>
+            <version>1.0.2</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 

@@ -18,14 +18,19 @@
 
 package me.ryanhamshire.GriefPrevention;
 
-import java.util.*;
-
-import org.bukkit.*;
+import io.papermc.lib.PaperLib;
+import org.bukkit.Chunk;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+
+import java.util.*;
+import java.util.function.Consumer;
 
 //represents a player claim
 //creating an instance doesn't make an effective claim
@@ -947,6 +952,50 @@ public class Claim
         
         return chunks;
     }
+	
+	/**
+	 * Asynchronously and sequentially loads each chunk in the claim and performs the provided action on each
+	 * @param action the action to perform on each chunk
+	 */
+	public void performOnChunksAsync(Consumer<Chunk> action)
+	{
+		World world = this.getLesserBoundaryCorner().getWorld();
+		int smallX = this.getLesserBoundaryCorner().getBlockX() >> 4;
+		int smallZ = this.getLesserBoundaryCorner().getBlockZ() >> 4;
+		int largeX = this.getGreaterBoundaryCorner().getBlockX() >> 4;
+		int largeZ = this.getGreaterBoundaryCorner().getBlockZ() >> 4;
+		
+		// start recursion
+		performOnChunksAsync(action, world, smallX, smallZ, smallX, smallZ, largeX, largeZ);
+	}
+	
+	private void performOnChunksAsync(Consumer<Chunk> action, World world, int smallX, int smallZ,
+									  int currentX, int currentZ, int largeX, int largeZ)
+	{
+		// instead of requesting loads of chunks and filling the queue, patently wait for each one to load, perform
+		// the action, then request the next one
+		PaperLib.getChunkAtAsync(world, currentX, currentZ).thenAccept(chunk ->
+		{
+			action.accept(chunk);
+			
+			// we finished with all the chunks
+			if(currentX >= largeX && currentZ >= largeZ) return;
+			
+			int nextX = currentX;
+			int nextZ = currentZ;
+			if(currentX < largeX)
+			{
+				nextX++;
+			}
+			else
+			{
+				nextX = smallX;
+				nextZ++;
+			}
+			
+			performOnChunksAsync(action, world, smallX, smallZ, nextX, nextZ, largeX, largeZ);
+		});
+	}
 
     ArrayList<Long> getChunkHashes()
     {
