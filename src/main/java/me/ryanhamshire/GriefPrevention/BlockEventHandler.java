@@ -18,10 +18,7 @@
 
 package me.ryanhamshire.GriefPrevention;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -492,9 +489,9 @@ public class BlockEventHandler implements Listener
 		}
 		
 		//who owns the piston, if anyone?
-		String pistonClaimOwnerName = "_";
+		UUID pistonClaimOwnerId = null;
 		Claim claim = this.dataStore.getClaimAt(event.getBlock().getLocation(), false, null);
-		if(claim != null) pistonClaimOwnerName = claim.getOwnerName();
+		if(claim != null) pistonClaimOwnerId = claim.ownerID;
 		
 		//if pistons are limited to same-claim block movement
 		if(GriefPrevention.instance.config_pistonsInClaimsOnly)
@@ -539,7 +536,7 @@ public class BlockEventHandler implements Listener
     			if(claim != null)
     			{
     			    cachedClaim = claim;
-    			    if(!claim.getOwnerName().equals(pistonClaimOwnerName))
+    			    if(!claim.ownerID.equals(pistonClaimOwnerId))
     			    {
         				event.setCancelled(true);
         				pistonBlock.getWorld().createExplosion(pistonBlock.getLocation(), 0);
@@ -555,22 +552,22 @@ public class BlockEventHandler implements Listener
 			{
 				Block block = blocks.get(i);
 				Claim originalClaim = this.dataStore.getClaimAt(block.getLocation(), false, cachedClaim);
-				String originalOwnerName = "";
+				UUID originalOwnerId = null;
 				if(originalClaim != null)
 				{
 					cachedClaim = originalClaim;
-				    originalOwnerName = originalClaim.getOwnerName();
+				    originalOwnerId = originalClaim.ownerID;
 				}
 				
 				Claim newClaim = this.dataStore.getClaimAt(block.getRelative(event.getDirection()).getLocation(), false, cachedClaim);
-				String newOwnerName = "";
+				UUID newOwnerId = null;
 				if(newClaim != null)
 				{
-				    newOwnerName = newClaim.getOwnerName();
+				    newOwnerId = newClaim.ownerID;
 				}
 				
 				//if pushing this block will change ownership, cancel the event and take away the piston (for performance reasons)
-				if(!newOwnerName.equals(originalOwnerName) && !newOwnerName.isEmpty())
+				if(newOwnerId != null && !newOwnerId.equals(originalOwnerId))
 				{
 					event.setCancelled(true);
 					pistonBlock.getWorld().createExplosion(pistonBlock.getLocation(), 0);
@@ -623,22 +620,22 @@ public class BlockEventHandler implements Listener
     		else
     		{
     		    //who owns the piston, if anyone?
-                String pistonOwnerName = "_";
+                UUID pistonOwnerId = null;
                 Block block = event.getBlock();
                 Location pistonLocation = block.getLocation();       
                 Claim pistonClaim = this.dataStore.getClaimAt(pistonLocation, false, null);
-                if(pistonClaim != null) pistonOwnerName = pistonClaim.getOwnerName();
+                if(pistonClaim != null) pistonOwnerId = pistonClaim.ownerID;
     		    
-    		    String movingBlockOwnerName = "_";
         		for(Block movedBlock : event.getBlocks())
         		{
         		    //who owns the moving block, if anyone?
+					UUID movingBlockOwnerId = null;
                     Claim movingBlockClaim = this.dataStore.getClaimAt(movedBlock.getLocation(), false, pistonClaim);
-            		if(movingBlockClaim != null) movingBlockOwnerName = movingBlockClaim.getOwnerName();
+            		if(movingBlockClaim != null) movingBlockOwnerId = movingBlockClaim.ownerID;
             		
             		//if there are owners for the blocks, they must be the same player
             		//otherwise cancel the event
-            		if(!pistonOwnerName.equals(movingBlockOwnerName))
+            		if(!Objects.equals(pistonOwnerId, movingBlockOwnerId))
             		{
             			event.setCancelled(true);
             			block.getWorld().createExplosion(block.getLocation(), 0);
@@ -893,7 +890,7 @@ public class BlockEventHandler implements Listener
 	}
 	
 	@EventHandler(ignoreCancelled = true)
-    public void onTreeGrow (StructureGrowEvent growEvent)
+    public void onTreeGrow(StructureGrowEvent growEvent)
     {
         //only take these potentially expensive steps if configured to do so
 	    if(!GriefPrevention.instance.config_limitTreeGrowth) return;
@@ -903,7 +900,7 @@ public class BlockEventHandler implements Listener
 	    
 	    Location rootLocation = growEvent.getLocation();
         Claim rootClaim = this.dataStore.getClaimAt(rootLocation, false, null);
-        String rootOwnerName = null;
+        UUID rootOwnerId = null;
         
         //who owns the spreading block, if anyone?
         if(rootClaim != null)
@@ -915,7 +912,7 @@ public class BlockEventHandler implements Listener
             if(rootClaim.isAdminClaim()) return;
             
             //otherwise, note the owner of the claim
-            rootOwnerName = rootClaim.getOwnerName();
+			rootOwnerId = rootClaim.ownerID;
         }
         
         //for each block growing
@@ -928,7 +925,7 @@ public class BlockEventHandler implements Listener
             if(blockClaim != null)
             {
                 //if there's no owner for the new tree, or the owner for the new tree is different from the owner of the claim
-                if(rootOwnerName == null  || !rootOwnerName.equals(blockClaim.getOwnerName()))
+                if(rootOwnerId == null || !rootOwnerId.equals(blockClaim.ownerID))
                 {
                     growEvent.getBlocks().remove(i--);
                 }
