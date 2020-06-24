@@ -74,3 +74,5 @@ target/
 *.name
 .idea
 *.iml
+
+dependency-reduced-pom.xml
