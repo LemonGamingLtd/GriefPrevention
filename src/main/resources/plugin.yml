@@ -1,3 +1,5 @@
+commit-hash: ${git.commit.id.describe-short}
+git-repo: Desteria/GriefPrevention
 name: GriefPrevention
 main: me.ryanhamshire.GriefPrevention.GriefPrevention
 softdepend: [Vault, Multiverse-Core, My_Worlds, MystCraft, Transporter, TheUnderground, WorldGuard, WorldEdit, RoyalCommands, MultiWorld, Denizen, Hyperconomy]

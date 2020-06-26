@@ -1,25 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>me.ryanhamshire</groupId>
+    <groupId>ltd.lemongaming</groupId>
     <artifactId>GriefPrevention</artifactId>
     <version>16.13.0</version>
+
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
     <repositories>
         <repository>
             <id>paper-repo</id>
             <url>https://papermc.io/repo/repository/maven-public/</url>
         </repository>
         <repository>
-            <id>spigot-repo</id> 
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url> 
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
         <repository>
             <id>worldedit-worldguard-repo</id>
@@ -33,26 +34,76 @@
             <id>papermc</id>
             <url>https://papermc.io/repo/repository/maven-public/</url>
         </repository>
+        <repository>
+            <id>lemongaming-repo</id>
+            <url>https://repo.lemongaming.ltd/repository/maven-public/</url>
+        </repository>
     </repositories>
+
+    <dependencies>
+        <!--Bukkit API-->
+        <dependency>
+            <groupId>org.bukkit</groupId>
+            <artifactId>bukkit</artifactId>
+            <version>1.15.2-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <!--Worldguard dependency-->
+        <dependency>
+            <groupId>com.sk89q.worldguard</groupId>
+            <artifactId>worldguard-legacy</artifactId>
+            <version>7.0.0-SNAPSHOT</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bukkit</groupId>
+                    <artifactId>bukkit</artifactId>
+                </exclusion>
+                <!--<exclusion>-->
+                <!--<groupId>com.sk89q.worldedit</groupId>-->
+                <!--<artifactId>worldedit-bukkit</artifactId>-->
+                <!--</exclusion>-->
+                <exclusion>
+                    <groupId>com.sk89q</groupId>
+                    <artifactId>commandbook</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bstats</groupId>
+                    <artifactId>bstats-bukkit</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!--Vault dependency-->
+        <dependency>
+            <groupId>net.milkbowl.vault</groupId>
+            <artifactId>VaultAPI</artifactId>
+            <version>1.7</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bukkit</groupId>
+                    <artifactId>bukkit</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!--PaperLib dependency-->
+        <dependency>
+            <groupId>io.papermc</groupId>
+            <artifactId>paperlib</artifactId>
+            <version>1.0.2</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <testSourceDirectory>src/test/java</testSourceDirectory>
         <testResources>
-          <testResource>
-            <directory>src/test/resources</directory>
-          </testResource>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
         </testResources>
         <finalName>${project.name}</finalName>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-                <targetPath>.</targetPath>
-                <includes>
-                    <include>plugin.yml</include>
-                </includes>
-            </resource>
-        </resources>
         <plugins>
             <!-- append git commit hash to version-->
             <plugin>
@@ -83,61 +134,44 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>pl.project13.maven</groupId>
+                <artifactId>git-commit-id-plugin</artifactId>
+                <version>4.0.0</version>
+                <executions>
+                    <execution>
+                        <id>get-the-git-info</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+                </configuration>
+            </plugin>
         </plugins>
-    </build>
-    <dependencies>
-        <!--Bukkit API-->
-        <dependency>
-                <groupId>org.bukkit</groupId>
-                <artifactId>bukkit</artifactId>
-                <version>1.15.2-R0.1-SNAPSHOT</version>
-                <scope>provided</scope>
-        </dependency>
-         <!--Worldguard dependency-->
-        <dependency>
-                <groupId>com.sk89q.worldguard</groupId>
-                <artifactId>worldguard-legacy</artifactId>
-                <version>7.0.0-SNAPSHOT</version>
-                <scope>provided</scope>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.bukkit</groupId>
-                        <artifactId>bukkit</artifactId>
-                    </exclusion>
-                    <!--<exclusion>-->
-                        <!--<groupId>com.sk89q.worldedit</groupId>-->
-                        <!--<artifactId>worldedit-bukkit</artifactId>-->
-                    <!--</exclusion>-->
-                    <exclusion>
-                        <groupId>com.sk89q</groupId>
-                        <artifactId>commandbook</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.bstats</groupId>
-                        <artifactId>bstats-bukkit</artifactId>
-                    </exclusion>
-            </exclusions>
-        </dependency>
-         <!--Vault dependency-->
-        <dependency>
-                <groupId>net.milkbowl.vault</groupId>
-                <artifactId>VaultAPI</artifactId>
-                <version>1.7</version>
-                <scope>provided</scope>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.bukkit</groupId>
-                        <artifactId>bukkit</artifactId>
-                    </exclusion>
-                </exclusions>
-        </dependency>
-        <!--PaperLib dependency-->
-        <dependency>
-            <groupId>io.papermc</groupId>
-            <artifactId>paperlib</artifactId>
-            <version>1.0.2</version>
-            <scope>compile</scope>
-        </dependency>
-    </dependencies>
 
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>**</include>
+                </includes>
+            </resource>
+        </resources>
+    </build>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>lemongaming-repo</id>
+            <url>https://repo.lemongaming.ltd/repository/maven-snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>lemongaming-repo</id>
+            <url>https://repo.lemongaming.ltd/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
 </project>
