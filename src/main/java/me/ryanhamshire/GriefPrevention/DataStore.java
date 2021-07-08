@@ -21,6 +21,7 @@ package me.ryanhamshire.GriefPrevention;
 import com.google.common.io.Files;
 import me.ryanhamshire.GriefPrevention.events.ClaimCreatedEvent;
 import me.ryanhamshire.GriefPrevention.events.ClaimDeletedEvent;
+import me.ryanhamshire.GriefPrevention.events.ClaimExtendEvent;
 import me.ryanhamshire.GriefPrevention.events.ClaimModifiedEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -64,14 +65,14 @@ public abstract class DataStore
 {
 
     //in-memory cache for player data
-    protected ConcurrentHashMap<UUID, PlayerData> playerNameToPlayerDataMap = new ConcurrentHashMap<UUID, PlayerData>();
+    protected ConcurrentHashMap<UUID, PlayerData> playerNameToPlayerDataMap = new ConcurrentHashMap<>();
 
     //in-memory cache for group (permission-based) data
-    protected ConcurrentHashMap<String, Integer> permissionToBonusBlocksMap = new ConcurrentHashMap<String, Integer>();
+    protected ConcurrentHashMap<String, Integer> permissionToBonusBlocksMap = new ConcurrentHashMap<>();
 
     //in-memory cache for claim data
-    ArrayList<Claim> claims = new ArrayList<Claim>();
-    ConcurrentHashMap<Long, ArrayList<Claim>> chunksToClaimsMap = new ConcurrentHashMap<Long, ArrayList<Claim>>();
+    ArrayList<Claim> claims = new ArrayList<>();
+    ConcurrentHashMap<Long, ArrayList<Claim>> chunksToClaimsMap = new ConcurrentHashMap<>();
 
     //in-memory cache for messages
     private String[] messages;
@@ -107,7 +108,7 @@ public abstract class DataStore
     static final String SUBDIVISION_VIDEO_URL = "" + ChatColor.DARK_AQUA + ChatColor.UNDERLINE + "bit.ly/mcgpsub" + ChatColor.RESET;
 
     //list of UUIDs which are soft-muted
-    ConcurrentHashMap<UUID, Boolean> softMuteMap = new ConcurrentHashMap<UUID, Boolean>();
+    ConcurrentHashMap<UUID, Boolean> softMuteMap = new ConcurrentHashMap<>();
 
     //world guard reference, if available
     private WorldGuardWrapper worldGuard = null;
@@ -273,7 +274,7 @@ public abstract class DataStore
         {
             GriefPrevention.AddLogEntry("Failed to read from the banned words data file: " + e.toString());
             e.printStackTrace();
-            return new ArrayList<String>();
+            return new ArrayList<>();
         }
     }
 
@@ -347,16 +348,17 @@ public abstract class DataStore
     //this will return 0 when he's offline, and the correct number when online.
     synchronized public int getGroupBonusBlocks(UUID playerID)
     {
+        Player player = GriefPrevention.instance.getServer().getPlayer(playerID);
+
+        if (player == null) return 0;
+
         int bonusBlocks = 0;
-        Set<String> keys = permissionToBonusBlocksMap.keySet();
-        Iterator<String> iterator = keys.iterator();
-        while (iterator.hasNext())
+
+        for (Map.Entry<String, Integer> groupEntry : this.permissionToBonusBlocksMap.entrySet())
         {
-            String groupName = iterator.next();
-            Player player = GriefPrevention.instance.getServer().getPlayer(playerID);
-            if (player != null && player.hasPermission(groupName))
+            if (player.hasPermission(groupEntry.getKey()))
             {
-                bonusBlocks += this.permissionToBonusBlocksMap.get(groupName);
+                bonusBlocks += groupEntry.getValue();
             }
         }
 
@@ -471,6 +473,9 @@ public abstract class DataStore
 
     private void addToChunkClaimMap(Claim claim)
     {
+        // Subclaims should not be added to chunk claim map.
+        if (claim.parent != null) return;
+
         ArrayList<Long> chunkHashes = claim.getChunkHashes();
         for (Long chunkHash : chunkHashes)
         {
@@ -510,7 +515,7 @@ public abstract class DataStore
     }
 
     //turns a location into a string, useful in data storage
-    private String locationStringDelimiter = ";";
+    private final String locationStringDelimiter = ";";
 
     String locationToString(Location location)
     {
@@ -722,8 +727,25 @@ public abstract class DataStore
     //cachedClaim can be NULL, but will help performance if you have a reasonable guess about which claim the location is in
     synchronized public Claim getClaimAt(Location location, boolean ignoreHeight, Claim cachedClaim)
     {
+        return getClaimAt(location, ignoreHeight, false, cachedClaim);
+    }
+
+    /**
+     * Get the claim at a specific location.
+     *
+     * <p>The cached claim may be null, but will increase performance if you have a reasonable idea
+     * of which claim is correct.
+     *
+     * @param location the location
+     * @param ignoreHeight whether or not to check containment vertically
+     * @param ignoreSubclaims whether or not subclaims should be returned over claims
+     * @param cachedClaim the cached claim, if any
+     * @return the claim containing the location or null if no claim exists there
+     */
+    synchronized public Claim getClaimAt(Location location, boolean ignoreHeight, boolean ignoreSubclaims, Claim cachedClaim)
+    {
         //check cachedClaim guess first.  if it's in the datastore and the location is inside it, we're done
-        if (cachedClaim != null && cachedClaim.inDataStore && cachedClaim.contains(location, ignoreHeight, true))
+        if (cachedClaim != null && cachedClaim.inDataStore && cachedClaim.contains(location, ignoreHeight, !ignoreSubclaims))
             return cachedClaim;
 
         //find a top level claim
@@ -735,6 +757,9 @@ public abstract class DataStore
         {
             if (claim.inDataStore && claim.contains(location, ignoreHeight, false))
             {
+                // If ignoring subclaims, claim is a match.
+                if (ignoreSubclaims) return claim;
+
                 //when we find a top level claim, if the location is in one of its subdivisions,
                 //return the SUBDIVISION, not the top level claim
                 for (int j = 0; j < claim.children.size(); j++)
@@ -780,20 +805,42 @@ public abstract class DataStore
         }
         else
         {
-            return Collections.unmodifiableCollection(new ArrayList<Claim>());
+            return Collections.unmodifiableCollection(new ArrayList<>());
         }
     }
 
     //gets an almost-unique, persistent identifier for a chunk
-    static Long getChunkHash(long chunkx, long chunkz)
+    public static Long getChunkHash(long chunkx, long chunkz)
     {
         return (chunkz ^ (chunkx << 32));
     }
 
     //gets an almost-unique, persistent identifier for a chunk
-    static Long getChunkHash(Location location)
+    public static Long getChunkHash(Location location)
     {
         return getChunkHash(location.getBlockX() >> 4, location.getBlockZ() >> 4);
+    }
+
+    public static ArrayList<Long> getChunkHashes(Claim claim) {
+        return getChunkHashes(claim.getLesserBoundaryCorner(), claim.getGreaterBoundaryCorner());
+    }
+
+    public static ArrayList<Long> getChunkHashes(Location min, Location max) {
+        ArrayList<Long> hashes = new ArrayList<>();
+        int smallX = min.getBlockX() >> 4;
+        int smallZ = min.getBlockZ() >> 4;
+        int largeX = max.getBlockX() >> 4;
+        int largeZ = max.getBlockZ() >> 4;
+
+        for (int x = smallX; x <= largeX; x++)
+        {
+            for (int z = smallZ; z <= largeZ; z++)
+            {
+                hashes.add(getChunkHash(x, z));
+            }
+        }
+
+        return hashes;
     }
 
     /*
@@ -881,10 +928,10 @@ public abstract class DataStore
                 new Location(world, smallx, smally, smallz),
                 new Location(world, bigx, bigy, bigz),
                 ownerID,
-                new ArrayList<String>(),
-                new ArrayList<String>(),
-                new ArrayList<String>(),
-                new ArrayList<String>(),
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new ArrayList<>(),
                 id);
 
         newClaim.parent = parent;
@@ -900,10 +947,8 @@ public abstract class DataStore
             claimsToCheck = this.claims;
         }
 
-        for (int i = 0; i < claimsToCheck.size(); i++)
+        for (Claim otherClaim : claimsToCheck)
         {
-            Claim otherClaim = claimsToCheck.get(i);
-
             //if we find an existing claim which will be overlapped
             if (otherClaim.id != newClaim.id && otherClaim.inDataStore && otherClaim.overlaps(newClaim))
             {
@@ -1017,6 +1062,11 @@ public abstract class DataStore
 
         if (claim.parent != null) claim = claim.parent;
 
+        //call event and return if event got cancelled
+        ClaimExtendEvent event = new ClaimExtendEvent(claim, newDepth);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) return;
+
         //adjust to new depth
         claim.lesserBoundaryCorner.setY(newDepth);
         claim.greaterBoundaryCorner.setY(newDepth);
@@ -1029,8 +1079,6 @@ public abstract class DataStore
 
         //save changes
         this.saveClaim(claim);
-        ClaimModifiedEvent event = new ClaimModifiedEvent(claim, null);
-        Bukkit.getPluginManager().callEvent(event);
     }
 
     //starts a siege on a claim
@@ -1161,10 +1209,9 @@ public abstract class DataStore
                     //drop any remainder on the ground at his feet
                     Object[] keys = wontFitItems.keySet().toArray();
                     Location winnerLocation = winner.getLocation();
-                    for (int i = 0; i < keys.length; i++)
+                    for (Map.Entry<Integer, ItemStack> wontFitItem : wontFitItems.entrySet())
                     {
-                        Integer key = (Integer) keys[i];
-                        winnerLocation.getWorld().dropItemNaturally(winnerLocation, wontFitItems.get(key));
+                        winner.getWorld().dropItemNaturally(winnerLocation, wontFitItem.getValue());
                     }
                 }
 
@@ -1174,7 +1221,7 @@ public abstract class DataStore
     }
 
     //timestamp for each siege cooldown to end
-    private HashMap<String, Long> siegeCooldownRemaining = new HashMap<String, Long>();
+    private final HashMap<String, Long> siegeCooldownRemaining = new HashMap<>();
 
     //whether or not a sieger can siege a particular victim or claim, considering only cooldowns
     synchronized public boolean onCooldown(Player attacker, Player defender, Claim defenderClaim)
@@ -1238,7 +1285,12 @@ public abstract class DataStore
         if (claim.isAdminClaim()) return;
 
         //player must have some level of permission to be sieged in a claim
-        if (claim.allowAccess(player) != null) return;
+        Claim currentClaim = claim;
+        while (!currentClaim.hasExplicitPermission(player, ClaimPermission.Access))
+        {
+            if (currentClaim.parent == null) return;
+            currentClaim = currentClaim.parent;
+        }
 
         //otherwise extend the siege
         playerData.siegeData.claims.add(claim);
@@ -1249,18 +1301,16 @@ public abstract class DataStore
     synchronized public void deleteClaimsForPlayer(UUID playerID, boolean releasePets)
     {
         //make a list of the player's claims
-        ArrayList<Claim> claimsToDelete = new ArrayList<Claim>();
-        for (int i = 0; i < this.claims.size(); i++)
+        ArrayList<Claim> claimsToDelete = new ArrayList<>();
+        for (Claim claim : this.claims)
         {
-            Claim claim = this.claims.get(i);
             if ((playerID == claim.ownerID || (playerID != null && playerID.equals(claim.ownerID))))
                 claimsToDelete.add(claim);
         }
 
         //delete them one by one
-        for (int i = 0; i < claimsToDelete.size(); i++)
+        for (Claim claim : claimsToDelete)
         {
-            Claim claim = claimsToDelete.get(i);
             claim.removeSurfaceFluids(null);
 
             this.deleteClaim(claim, releasePets);
@@ -1292,8 +1342,6 @@ public abstract class DataStore
 
             //save those changes
             this.saveClaim(result.claim);
-            ClaimModifiedEvent event = new ClaimModifiedEvent(result.claim, resizingPlayer);
-            Bukkit.getPluginManager().callEvent(event);
         }
 
         return result;
@@ -1340,18 +1388,24 @@ public abstract class DataStore
             }
         }
 
+        Claim oldClaim = playerData.claimResizing;
+        Claim newClaim = new Claim(oldClaim);
+        World world = newClaim.getLesserBoundaryCorner().getWorld();
+        newClaim.lesserBoundaryCorner = new Location(world, newx1, newy1, newz1);
+        newClaim.greaterBoundaryCorner = new Location(world, newx2, newy2, newz2);
+
+        //call event here to check if it has been cancelled
+        ClaimModifiedEvent event = new ClaimModifiedEvent(oldClaim, newClaim, player);
+        Bukkit.getPluginManager().callEvent(event);
+
+        //return here if event is cancelled
+        if (event.isCancelled()) return;
+
         //special rule for making a top-level claim smaller.  to check this, verifying the old claim's corners are inside the new claim's boundaries.
         //rule: in any mode, shrinking a claim removes any surface fluids
-        Claim oldClaim = playerData.claimResizing;
         boolean smaller = false;
         if (oldClaim.parent == null)
         {
-            //temporary claim instance, just for checking contains()
-            Claim newClaim = new Claim(
-                    new Location(oldClaim.getLesserBoundaryCorner().getWorld(), newx1, newy1, newz1),
-                    new Location(oldClaim.getLesserBoundaryCorner().getWorld(), newx2, newy2, newz2),
-                    null, new ArrayList<String>(), new ArrayList<String>(), new ArrayList<String>(), new ArrayList<String>(), null);
-
             //if the new claim is smaller
             if (!newClaim.contains(oldClaim.getLesserBoundaryCorner(), true, false) || !newClaim.contains(oldClaim.getGreaterBoundaryCorner(), true, false))
             {
@@ -1462,7 +1516,7 @@ public abstract class DataStore
         Messages[] messageIDs = Messages.values();
         this.messages = new String[Messages.values().length];
 
-        HashMap<String, CustomizableMessage> defaults = new HashMap<String, CustomizableMessage>();
+        HashMap<String, CustomizableMessage> defaults = new HashMap<>();
 
         //initialize defaults
         this.addDefault(defaults, Messages.RespectingClaims, "Now respecting claims.", null);
@@ -1526,6 +1580,7 @@ public abstract class DataStore
         this.addDefault(defaults, Messages.NotYourClaim, "This isn't your claim.", null);
         this.addDefault(defaults, Messages.DeleteTopLevelClaim, "To delete a subdivision, stand inside it.  Otherwise, use /AbandonTopLevelClaim to delete this claim and all subdivisions.", null);
         this.addDefault(defaults, Messages.AbandonSuccess, "Claim abandoned.  You now have {0} available claim blocks.", "0: remaining claim blocks");
+        this.addDefault(defaults, Messages.ConfirmAbandonAllClaims, "Are you sure you want to abandon ALL of your claims?  Please confirm with /AbandonAllClaims confirm", null);
         this.addDefault(defaults, Messages.CantGrantThatPermission, "You can't grant a permission you don't have yourself.", null);
         this.addDefault(defaults, Messages.GrantPermissionNoClaim, "Stand inside the claim where you want to grant permission.", null);
         this.addDefault(defaults, Messages.GrantPermissionConfirmation, "Granted {0} permission to {1} {2}.", "0: target player; 1: permission description; 2: scope (changed claims)");
@@ -1547,6 +1602,7 @@ public abstract class DataStore
         this.addDefault(defaults, Messages.TooDeepToClaim, "This chest can't be protected because it's too deep underground.  Consider moving it.", null);
         this.addDefault(defaults, Messages.ChestClaimConfirmation, "This chest is protected.", null);
         this.addDefault(defaults, Messages.AutomaticClaimNotification, "This chest and nearby blocks are protected from breakage and theft.", null);
+        this.addDefault(defaults, Messages.AutomaticClaimOtherClaimTooClose, "Cannot create a claim for your chest, there is another claim too close!", null);
         this.addDefault(defaults, Messages.UnprotectedChestWarning, "This chest is NOT protected.  Consider using a golden shovel to expand an existing claim or to create a new one.", null);
         this.addDefault(defaults, Messages.ThatPlayerPvPImmune, "You can't injure defenseless players.", null);
         this.addDefault(defaults, Messages.CantFightWhileImmune, "You can't fight someone while you're protected from PvP.", null);
@@ -1706,10 +1762,9 @@ public abstract class DataStore
         FileConfiguration config = YamlConfiguration.loadConfiguration(new File(messagesFilePath));
 
         //for each message ID
-        for (int i = 0; i < messageIDs.length; i++)
+        for (Messages messageID : messageIDs)
         {
             //get default for this message
-            Messages messageID = messageIDs[i];
             CustomizableMessage messageData = defaults.get(messageID.name());
 
             //if default is missing, log an error and use some fake data for now so that the plugin can run
@@ -1779,7 +1834,7 @@ public abstract class DataStore
         if (this.getSchemaVersion() >= 1) return names;
 
         //list to build results
-        List<String> resultNames = new ArrayList<String>();
+        List<String> resultNames = new ArrayList<>();
 
         for (String name : names)
         {
@@ -1812,8 +1867,8 @@ public abstract class DataStore
 
     private class SavePlayerDataThread extends Thread
     {
-        private UUID playerID;
-        private PlayerData playerData;
+        private final UUID playerID;
+        private final PlayerData playerData;
 
         SavePlayerDataThread(UUID playerID, PlayerData playerData)
         {
@@ -1833,7 +1888,7 @@ public abstract class DataStore
     //gets all the claims "near" a location
     Set<Claim> getNearbyClaims(Location location)
     {
-        Set<Claim> claims = new HashSet<Claim>();
+        Set<Claim> claims = new HashSet<>();
 
         Chunk lesserChunk = location.getWorld().getChunkAt(location.subtract(150, 0, 150));
         Chunk greaterChunk = location.getWorld().getChunkAt(location.add(300, 0, 300));

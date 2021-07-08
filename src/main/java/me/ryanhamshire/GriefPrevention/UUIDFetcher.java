@@ -3,10 +3,11 @@
 package me.ryanhamshire.GriefPrevention;
 
 import com.google.common.base.Charsets;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import org.bukkit.OfflinePlayer;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -15,13 +16,15 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 class UUIDFetcher
 {
     private static int PROFILES_PER_REQUEST = 100;
     private static final String PROFILE_URL = "https://api.mojang.com/profiles/minecraft";
-    private final JSONParser jsonParser = new JSONParser();
+    private final Gson gson = new Gson();
     private final List<String> names;
     private final boolean rateLimiting;
 
@@ -46,12 +49,12 @@ class UUIDFetcher
     {
         if (lookupCache == null)
         {
-            lookupCache = new HashMap<String, UUID>();
+            lookupCache = new HashMap<>();
         }
 
         if (correctedNames == null)
         {
-            correctedNames = new HashMap<String, String>();
+            correctedNames = new HashMap<>();
         }
 
         GriefPrevention.AddLogEntry("UUID conversion process started.  Please be patient - this may take a while.");
@@ -94,25 +97,39 @@ class UUIDFetcher
             }
         }
 
+        names.removeIf(Objects::isNull);
+
         //for online mode, call Mojang to resolve the rest
         if (GriefPrevention.instance.getServer().getOnlineMode())
         {
+            Pattern validNamePattern = Pattern.compile("^\\w+$");
+
+            // Don't bother requesting UUIDs for invalid names from Mojang.
+            names.removeIf(name ->
+            {
+                if (name.length() >= 3 && name.length() <= 16 && validNamePattern.matcher(name).find())
+                    return false;
+
+                GriefPrevention.AddLogEntry(String.format("Cannot convert invalid name: %s", name));
+                return true;
+            });
+
             GriefPrevention.AddLogEntry("Calling Mojang to get UUIDs for remaining unresolved players (this is the slowest step)...");
 
             for (int i = 0; i * PROFILES_PER_REQUEST < names.size(); i++)
             {
                 boolean retry = false;
-                JSONArray array = null;
+                JsonArray array = null;
                 do
                 {
                     HttpURLConnection connection = createConnection();
-                    String body = JSONArray.toJSONString(names.subList(i * PROFILES_PER_REQUEST, Math.min((i + 1) * PROFILES_PER_REQUEST, names.size())));
+                    String body = gson.toJson(names.subList(i * PROFILES_PER_REQUEST, Math.min((i + 1) * PROFILES_PER_REQUEST, names.size())));
                     writeBody(connection, body);
                     retry = false;
                     array = null;
                     try
                     {
-                        array = (JSONArray) jsonParser.parse(new InputStreamReader(connection.getInputStream()));
+                        array = gson.fromJson(new InputStreamReader(connection.getInputStream()), JsonArray.class);
                     }
                     catch (Exception e)
                     {
@@ -144,11 +161,11 @@ class UUIDFetcher
                     }
                 } while (retry);
 
-                for (Object profile : array)
+                for (JsonElement profile : array)
                 {
-                    JSONObject jsonProfile = (JSONObject) profile;
-                    String id = (String) jsonProfile.get("id");
-                    String name = (String) jsonProfile.get("name");
+                    JsonObject jsonProfile = profile.getAsJsonObject();
+                    String id = jsonProfile.get("id").getAsString();
+                    String name = jsonProfile.get("name").getAsString();
                     UUID uuid = UUIDFetcher.getUUID(id);
                     GriefPrevention.AddLogEntry(name + " --> " + uuid.toString());
                     lookupCache.put(name, uuid);
@@ -166,10 +183,9 @@ class UUIDFetcher
         {
             GriefPrevention.AddLogEntry("Generating offline mode UUIDs for remaining unresolved players...");
 
-            for (int i = 0; i < names.size(); i++)
+            for (String name : names)
             {
-                String name = names.get(i);
-                UUID uuid = java.util.UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(Charsets.UTF_8));
+                UUID uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(Charsets.UTF_8));
                 GriefPrevention.AddLogEntry(name + " --> " + uuid.toString());
                 lookupCache.put(name, uuid);
                 lookupCache.put(name.toLowerCase(), uuid);

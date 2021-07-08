@@ -27,9 +27,9 @@ import java.util.Collections;
 //applies a visualization for a player by sending him block change packets
 class VisualizationReversionTask implements Runnable
 {
-    private Visualization visualization;
-    private Player player;
-    private PlayerData playerData;
+    private final Visualization visualization;
+    private final Player player;
+    private final PlayerData playerData;
 
     public VisualizationReversionTask(Player player, PlayerData playerData, Visualization visualization)
     {
@@ -45,7 +45,7 @@ class VisualizationReversionTask implements Runnable
         if (playerData.currentVisualization != visualization) return;
 
         // alert plugins of a visualization
-        Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, Collections.<Claim>emptySet()));
+        Bukkit.getPluginManager().callEvent(new VisualizationEvent(player, null, Collections.<Claim>emptySet()));
 
         Visualization.Revert(player);
     }

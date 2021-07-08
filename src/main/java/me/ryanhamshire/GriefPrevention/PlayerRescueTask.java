@@ -27,13 +27,13 @@ import org.bukkit.entity.Player;
 class PlayerRescueTask implements Runnable
 {
     //original location where /trapped was used
-    private Location location;
+    private final Location location;
 
     //rescue destination, may be decided at instantiation or at execution
     private Location destination;
 
     //player data
-    private Player player;
+    private final Player player;
 
     public PlayerRescueTask(Player player, Location location, Location destination)
     {
@@ -53,7 +53,7 @@ class PlayerRescueTask implements Runnable
         playerData.pendingTrapped = false;
 
         //if the player moved three or more blocks from where he used /trapped, admonish him and don't save him
-        if (player.getLocation().distance(this.location) > 3)
+        if (!player.getLocation().getWorld().equals(this.location.getWorld()) || player.getLocation().distance(this.location) > 3)
         {
             GriefPrevention.sendMessage(player, TextMode.Err, Messages.RescueAbortedMoved);
             return;

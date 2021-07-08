@@ -27,7 +27,7 @@ import org.bukkit.inventory.EquipmentSlot;
 class EquipShovelProcessingTask implements Runnable
 {
     //player data
-    private Player player;
+    private final Player player;
 
     public EquipShovelProcessingTask(Player player)
     {
@@ -70,7 +70,7 @@ class EquipShovelProcessingTask implements Runnable
 
         //if standing in a claim owned by the player, visualize it
         Claim claim = GriefPrevention.instance.dataStore.getClaimAt(player.getLocation(), true, playerData.lastClaim);
-        if (claim != null && claim.allowEdit(player) == null)
+        if (claim != null && claim.checkPermission(player, ClaimPermission.Edit, null) == null)
         {
             playerData.lastClaim = claim;
             Visualization.Apply(player, Visualization.FromClaim(claim, player.getEyeLocation().getBlockY(), VisualizationType.Claim, player.getLocation()));
