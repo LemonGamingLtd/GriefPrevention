@@ -19,7 +19,6 @@
 package me.ryanhamshire.GriefPrevention;
 
 import me.ryanhamshire.GriefPrevention.util.BoundingBox;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -106,6 +105,8 @@ public class BlockEventHandler implements Listener
         this.trashBlocks.add(Material.SAND);
         this.trashBlocks.add(Material.TNT);
         this.trashBlocks.add(Material.CRAFTING_TABLE);
+        this.trashBlocks.add(Material.TUFF);
+        this.trashBlocks.add(Material.COBBLED_DEEPSLATE);
     }
 
     //when a player breaks a block...
@@ -738,34 +739,9 @@ public class BlockEventHandler implements Listener
             }
         }
 
-        // Handle arrows igniting TNT.
+        // Arrow ignition is handled by the EntityChangeBlockEvent.
         if (igniteEvent.getCause() == IgniteCause.ARROW)
         {
-            Claim claim = GriefPrevention.instance.dataStore.getClaimAt(igniteEvent.getBlock().getLocation(), false, null);
-
-            if (claim == null)
-            {
-                // Only TNT can be ignited by arrows, so the targeted block will be destroyed by completion.
-                if (!GriefPrevention.instance.config_fireDestroys || !GriefPrevention.instance.config_fireSpreads)
-                    igniteEvent.setCancelled(true);
-                return;
-            }
-
-            if (igniteEvent.getIgnitingEntity() instanceof Projectile)
-            {
-                ProjectileSource shooter = ((Projectile) igniteEvent.getIgnitingEntity()).getShooter();
-
-                // Allow ignition if arrow was shot by a player with build permission.
-                if (shooter instanceof Player && claim.checkPermission((Player) shooter, ClaimPermission.Build, igniteEvent) == null) return;
-
-                // Allow ignition if arrow was shot by a dispenser in the same claim.
-                if (shooter instanceof BlockProjectileSource &&
-                        GriefPrevention.instance.dataStore.getClaimAt(((BlockProjectileSource) shooter).getBlock().getLocation(), false, claim) == claim)
-                    return;
-            }
-
-            // Block all other ignition by arrows in claims.
-            igniteEvent.setCancelled(true);
             return;
         }
 
@@ -924,10 +900,11 @@ public class BlockEventHandler implements Listener
         //don't track in worlds where claims are not enabled
         if (!GriefPrevention.instance.claimsEnabledForWorld(event.getEntity().getWorld())) return;
 
-        if (event.getHitBlock() == null || event.getHitBlock().getType() != Material.CHORUS_FLOWER)
-            return;
-
         Block block = event.getHitBlock();
+
+        // Ensure projectile affects block.
+        if (block == null || block.getType() != Material.CHORUS_FLOWER)
+            return;
 
         Claim claim = dataStore.getClaimAt(block.getLocation(), false, null);
         if (claim == null)
@@ -941,8 +918,7 @@ public class BlockEventHandler implements Listener
 
         if (shooter == null)
         {
-            event.getHitBlock().setType(Material.AIR);
-            Bukkit.getScheduler().runTask(GriefPrevention.instance, () -> event.getHitBlock().setBlockData(block.getBlockData()));
+            event.setCancelled(true);
             return;
         }
 
@@ -950,8 +926,7 @@ public class BlockEventHandler implements Listener
 
         if (allowContainer != null)
         {
-            event.getHitBlock().setType(Material.AIR);
-            Bukkit.getScheduler().runTask(GriefPrevention.instance, () -> event.getHitBlock().setBlockData(block.getBlockData()));
+            event.setCancelled(true);
             GriefPrevention.sendMessage(shooter, TextMode.Err, allowContainer.get());
             return;
         }
@@ -1004,7 +979,7 @@ public class BlockEventHandler implements Listener
 
         Location rootLocation = growEvent.getLocation();
         Claim rootClaim = this.dataStore.getClaimAt(rootLocation, false, null);
-        UUID rootOwnerId = null;
+        String rootOwnerName = null;
 
         //who owns the spreading block, if anyone?
         if (rootClaim != null)
@@ -1016,7 +991,7 @@ public class BlockEventHandler implements Listener
             if (rootClaim.isAdminClaim()) return;
 
             //otherwise, note the owner of the claim
-			rootOwnerId = rootClaim.ownerID;
+            rootOwnerName = rootClaim.getOwnerName();
         }
 
         //for each block growing
@@ -1029,7 +1004,7 @@ public class BlockEventHandler implements Listener
             if (blockClaim != null)
             {
                 //if there's no owner for the new tree, or the owner for the new tree is different from the owner of the claim
-                if(rootOwnerId == null || !rootOwnerId.equals(blockClaim.ownerID))
+                if (rootOwnerName == null || !rootOwnerName.equals(blockClaim.getOwnerName()))
                 {
                     growEvent.getBlocks().remove(i--);
                 }

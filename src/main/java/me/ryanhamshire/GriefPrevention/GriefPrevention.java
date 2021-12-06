@@ -82,6 +82,9 @@ public class GriefPrevention extends JavaPlugin
     //this handles data storage, like player and region data
     public DataStore dataStore;
 
+    // Event handlers with common functionality
+    EntityEventHandler entityEventHandler;
+
     //this tracks item stacks expected to drop which will need protection
     ArrayList<PendingItemProtection> pendingItemWatchList = new ArrayList<>();
 
@@ -206,6 +209,7 @@ public class GriefPrevention extends JavaPlugin
     public int config_ipLimit;                                      //how many players can share an IP address
 
     public boolean config_trollFilterEnabled;                       //whether to auto-mute new players who use banned words right after joining
+    public boolean config_silenceBans;                              //whether to remove quit messages on banned players
 
     public HashMap<String, Integer> config_seaLevelOverride;        //override for sea level, because bukkit doesn't report the right value for all situations
 
@@ -358,7 +362,7 @@ public class GriefPrevention extends JavaPlugin
         pluginManager.registerEvents(blockEventHandler, this);
 
         //entity events
-        EntityEventHandler entityEventHandler = new EntityEventHandler(this.dataStore, this);
+        entityEventHandler = new EntityEventHandler(this.dataStore, this);
         pluginManager.registerEvents(entityEventHandler, this);
 
         //siege events
@@ -550,7 +554,7 @@ public class GriefPrevention extends JavaPlugin
         this.config_claims_claimsExtendIntoGroundDistance = Math.abs(config.getInt("GriefPrevention.Claims.ExtendIntoGroundDistance", 5));
         this.config_claims_minWidth = config.getInt("GriefPrevention.Claims.MinimumWidth", 5);
         this.config_claims_minArea = config.getInt("GriefPrevention.Claims.MinimumArea", 100);
-        this.config_claims_maxDepth = config.getInt("GriefPrevention.Claims.MaximumDepth", 0);
+        this.config_claims_maxDepth = config.getInt("GriefPrevention.Claims.MaximumDepth", Integer.MIN_VALUE);
         this.config_claims_chestClaimExpirationDays = config.getInt("GriefPrevention.Claims.Expiration.ChestClaimDays", 7);
         this.config_claims_unusedClaimExpirationDays = config.getInt("GriefPrevention.Claims.Expiration.UnusedClaimDays", 14);
         this.config_claims_expirationDays = config.getInt("GriefPrevention.Claims.Expiration.AllClaims.DaysInactive", 60);
@@ -619,6 +623,7 @@ public class GriefPrevention extends JavaPlugin
         this.config_smartBan = config.getBoolean("GriefPrevention.SmartBan", true);
         this.config_trollFilterEnabled = config.getBoolean("GriefPrevention.Mute New Players Using Banned Words", true);
         this.config_ipLimit = config.getInt("GriefPrevention.MaxPlayersPerIpAddress", 3);
+        this.config_silenceBans = config.getBoolean("GriefPrevention.SilenceBans", true);
 
         this.config_endermenMoveBlocks = config.getBoolean("GriefPrevention.EndermenMoveBlocks", false);
         this.config_silverfishBreakBlocks = config.getBoolean("GriefPrevention.SilverfishBreakBlocks", false);
@@ -871,6 +876,7 @@ public class GriefPrevention extends JavaPlugin
         outConfig.set("GriefPrevention.SmartBan", this.config_smartBan);
         outConfig.set("GriefPrevention.Mute New Players Using Banned Words", this.config_trollFilterEnabled);
         outConfig.set("GriefPrevention.MaxPlayersPerIpAddress", this.config_ipLimit);
+        outConfig.set("GriefPrevention.SilenceBans", this.config_silenceBans);
 
         outConfig.set("GriefPrevention.Siege.Worlds", siegeEnabledWorldNames);
         outConfig.set("GriefPrevention.Siege.BreakableBlocks", breakableBlocksList);
@@ -1523,12 +1529,6 @@ public class GriefPrevention extends JavaPlugin
             //determine which claim the player is standing in
             Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
 
-            //bracket any permissions
-            if (args[0].contains(".") && !args[0].startsWith("[") && !args[0].endsWith("]"))
-            {
-                args[0] = "[" + args[0] + "]";
-            }
-
             //determine whether a single player or clearing permissions entirely
             boolean clearPermissions = false;
             OfflinePlayer otherPlayer = null;
@@ -1552,8 +1552,16 @@ public class GriefPrevention extends JavaPlugin
                     otherPlayer = this.resolvePlayerByName(args[0]);
                     if (!clearPermissions && otherPlayer == null && !args[0].equals("public"))
                     {
-                        GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
-                        return true;
+                        //bracket any permissions - at this point it must be a permission without brackets
+                        if (args[0].contains("."))
+                        {
+                            args[0] = "[" + args[0] + "]";
+                        }
+                        else
+                        {
+                            GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
+                            return true;
+                        }
                     }
 
                     //correct to proper casing
@@ -2946,20 +2954,22 @@ public class GriefPrevention extends JavaPlugin
                 return;
             }
         }
-        else if (recipientName.contains("."))
-        {
-            permission = recipientName;
-        }
         else
         {
             otherPlayer = this.resolvePlayerByName(recipientName);
-            if (otherPlayer == null && !recipientName.equals("public") && !recipientName.equals("all"))
+            boolean isPermissionFormat = recipientName.contains(".");
+            if (otherPlayer == null && !recipientName.equals("public") && !recipientName.equals("all") && !isPermissionFormat)
             {
                 GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
                 return;
             }
 
-            if (otherPlayer != null)
+            if (otherPlayer == null && isPermissionFormat)
+            {
+                //player does not exist and argument has a period so this is a permission instead
+                permission = recipientName;
+            }
+            else if (otherPlayer != null)
             {
                 recipientName = otherPlayer.getName();
                 recipientID = otherPlayer.getUniqueId();
@@ -3026,6 +3036,8 @@ public class GriefPrevention extends JavaPlugin
         if (permission != null)
         {
             identifierToAdd = "[" + permission + "]";
+            //replace recipientName as well so the success message clearly signals a permission
+            recipientName = identifierToAdd;
         }
         else if (recipientID != null)
         {

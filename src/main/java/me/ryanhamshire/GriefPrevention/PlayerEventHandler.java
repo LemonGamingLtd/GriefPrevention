@@ -952,7 +952,7 @@ class PlayerEventHandler implements Listener
         }
 
         //silence notifications when the player is banned
-        if (isBanned)
+        if (isBanned && instance.config_silenceBans)
         {
             event.setQuitMessage(null);
         }
@@ -1350,7 +1350,7 @@ class PlayerEventHandler implements Listener
         if (itemInHand.getType() == Material.NAME_TAG)
         {
             EntityDamageByEntityEvent damageEvent = new EntityDamageByEntityEvent(player, entity, EntityDamageEvent.DamageCause.CUSTOM, 0);
-            instance.getServer().getPluginManager().callEvent(damageEvent);
+            instance.entityEventHandler.onEntityDamage(damageEvent);
             if (damageEvent.isCancelled())
             {
                 event.setCancelled(true);
@@ -1731,22 +1731,28 @@ class PlayerEventHandler implements Listener
         if (clickedBlock != null && instance.config_claims_preventTheft && (
                 event.getAction() == Action.RIGHT_CLICK_BLOCK && (
                         (this.isInventoryHolder(clickedBlock) && clickedBlock.getType() != Material.LECTERN) ||
-                                clickedBlockType == Material.CAULDRON ||
-                                clickedBlockType == Material.JUKEBOX ||
                                 clickedBlockType == Material.ANVIL ||
-                                clickedBlockType == Material.CHIPPED_ANVIL ||
-                                clickedBlockType == Material.DAMAGED_ANVIL ||
-                                clickedBlockType == Material.CAKE ||
-                                clickedBlockType == Material.SWEET_BERRY_BUSH ||
+                                clickedBlockType == Material.BEACON ||
                                 clickedBlockType == Material.BEE_NEST ||
                                 clickedBlockType == Material.BEEHIVE ||
-                                clickedBlockType == Material.BEACON ||
                                 clickedBlockType == Material.BELL ||
-                                clickedBlockType == Material.STONECUTTER ||
-                                clickedBlockType == Material.GRINDSTONE ||
+                                clickedBlockType == Material.CAKE ||
                                 clickedBlockType == Material.CARTOGRAPHY_TABLE ||
+                                clickedBlockType == Material.CAULDRON ||
+                                clickedBlockType == Material.CAVE_VINES ||
+                                clickedBlockType == Material.CAVE_VINES_PLANT ||
+                                clickedBlockType == Material.CHIPPED_ANVIL ||
+                                clickedBlockType == Material.DAMAGED_ANVIL ||
+                                clickedBlockType == Material.GRINDSTONE ||
+                                clickedBlockType == Material.JUKEBOX ||
                                 clickedBlockType == Material.LOOM ||
-                                clickedBlockType == Material.RESPAWN_ANCHOR
+                                clickedBlockType == Material.PUMPKIN ||
+                                clickedBlockType == Material.RESPAWN_ANCHOR ||
+                                clickedBlockType == Material.ROOTED_DIRT ||
+                                clickedBlockType == Material.STONECUTTER ||
+                                clickedBlockType == Material.SWEET_BERRY_BUSH ||
+                                Tag.CANDLES.isTagged(clickedBlockType) ||
+                                Tag.CANDLE_CAKES.isTagged(clickedBlockType)
                         )))
         {
             if (playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
@@ -1840,7 +1846,7 @@ class PlayerEventHandler implements Listener
         }
 
         //otherwise apply rule for cake
-        else if (clickedBlock != null && instance.config_claims_preventTheft && clickedBlockType == Material.CAKE)
+        else if (clickedBlock != null && instance.config_claims_preventTheft && (clickedBlockType == Material.CAKE || Tag.CANDLE_CAKES.isTagged(clickedBlockType)))
         {
             if (playerData == null) playerData = this.dataStore.getPlayerData(player.getUniqueId());
             Claim claim = this.dataStore.getClaimAt(clickedBlock.getLocation(), false, playerData.lastClaim);
@@ -1907,13 +1913,15 @@ class PlayerEventHandler implements Listener
                     dyes.add(material);
             }
 
-
             //if it's bonemeal, armor stand, spawn egg, etc - check for build permission //RoboMWM: also check flint and steel to stop TNT ignition
+            //add glowing ink sac and ink sac, due to their usage on signs
             if (clickedBlock != null && (materialInHand == Material.BONE_MEAL
                     || materialInHand == Material.ARMOR_STAND
                     || (spawn_eggs.contains(materialInHand) && GriefPrevention.instance.config_claims_preventGlobalMonsterEggs)
                     || materialInHand == Material.END_CRYSTAL
                     || materialInHand == Material.FLINT_AND_STEEL
+                    || materialInHand == Material.INK_SAC
+                    || materialInHand == Material.GLOW_INK_SAC
                     || dyes.contains(materialInHand)))
             {
                 String noBuildReason = instance
@@ -2240,7 +2248,7 @@ class PlayerEventHandler implements Listener
                 int minz = centerBlock.getZ() - playerData.fillRadius;
                 int maxz = centerBlock.getZ() + playerData.fillRadius;
                 int minHeight = maxHeight - 10;
-                if (minHeight < 0) minHeight = 0;
+                minHeight = Math.max(minHeight, clickedBlock.getWorld().getMinHeight());
 
                 Claim cachedClaim = null;
                 for (int x = minx; x <= maxx; x++)

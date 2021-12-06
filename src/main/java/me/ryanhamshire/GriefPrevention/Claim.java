@@ -326,7 +326,8 @@ public class Claim
     @Deprecated
     public String allowEdit(Player player)
     {
-        return checkPermission(player, ClaimPermission.Edit, null).get();
+        Supplier<String> supplier = checkPermission(player, ClaimPermission.Edit, null);
+        return supplier != null ? supplier.get() : null;
     }
 
     private static final Set<Material> PLACEABLE_FARMING_BLOCKS = EnumSet.of(
@@ -337,7 +338,10 @@ public class Claim
             Material.POTATOES,
             Material.NETHER_WART,
             Material.BEETROOTS,
-            Material.COCOA);
+            Material.COCOA,
+            Material.GLOW_BERRIES,
+            Material.CAVE_VINES,
+            Material.CAVE_VINES_PLANT);
 
     private static boolean placeableForFarming(Material material)
     {
@@ -353,7 +357,8 @@ public class Claim
     //build permission check
     public String allowBuild(Player player, Material material)
     {
-        return checkPermission(player, ClaimPermission.Build, new CompatBuildBreakEvent(material, false)).get();
+        Supplier<String> supplier = checkPermission(player, ClaimPermission.Build, new CompatBuildBreakEvent(material, false));
+        return supplier != null ? supplier.get() : null;
     }
 
     public static class CompatBuildBreakEvent extends Event
@@ -948,7 +953,7 @@ public class Claim
 
         return chunks;
     }
-	
+
 	/**
 	 * Asynchronously and sequentially loads each chunk in the claim and performs the provided action on each
 	 * @param action the action to perform on each chunk
@@ -960,11 +965,11 @@ public class Claim
 		int smallZ = this.getLesserBoundaryCorner().getBlockZ() >> 4;
 		int largeX = this.getGreaterBoundaryCorner().getBlockX() >> 4;
 		int largeZ = this.getGreaterBoundaryCorner().getBlockZ() >> 4;
-		
+
 		// start recursion
 		performOnChunksAsync(action, world, smallX, smallZ, smallX, smallZ, largeX, largeZ);
 	}
-	
+
 	private void performOnChunksAsync(Consumer<Chunk> action, World world, int smallX, int smallZ,
 									  int currentX, int currentZ, int largeX, int largeZ)
 	{
@@ -973,10 +978,10 @@ public class Claim
 		PaperLib.getChunkAtAsync(world, currentX, currentZ).thenAccept(chunk ->
 		{
 			action.accept(chunk);
-			
+
 			// we finished with all the chunks
 			if(currentX >= largeX && currentZ >= largeZ) return;
-			
+
 			int nextX = currentX;
 			int nextZ = currentZ;
 			if(currentX < largeX)
@@ -988,7 +993,7 @@ public class Claim
 				nextX = smallX;
 				nextZ++;
 			}
-			
+
 			performOnChunksAsync(action, world, smallX, smallZ, nextX, nextZ, largeX, largeZ);
 		});
 	}
