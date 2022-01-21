@@ -4,7 +4,7 @@
 
     <groupId>com.griefprevention</groupId>
     <artifactId>GriefPrevention</artifactId>
-    <version>16.17.2-SNAPSHOT</version>
+    <version>16.18-RC2-SNAPSHOT</version>
 
     <name>GriefPrevention</name>
     <description>The official self-service anti-griefing Bukkit plugin for Minecraft servers since 2011.</description>
@@ -30,7 +30,7 @@
 
     <scm>
         <developerConnection>scm:git:https://github.com/TechFortress/GriefPrevention.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>16.18-RC1</tag>
     </scm>
 
     <repositories>
@@ -73,6 +73,30 @@
                     <target>16</target>
                 </configuration>
             </plugin>
+            <!-- Append git commit hash to version -->
+            <plugin>
+                <groupId>pl.project13.maven</groupId>
+                <artifactId>git-commit-id-plugin</artifactId>
+                <version>4.0.3</version>
+                <executions>
+                    <execution>
+                        <id>get-the-git-infos</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>3.0.0-M1</version>
+                <configuration>
+                    <tagNameFormat>@{project.version}</tagNameFormat>
+                    <allowTimestampedSnapshots>true</allowTimestampedSnapshots>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -87,32 +111,8 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>pl.project13.maven</groupId>
-                <artifactId>git-commit-id-plugin</artifactId>
-                <version>4.0.3</version>
-                <executions>
-                    <execution>
-                        <id>get-the-git-info</id>
-                        <goals>
-                            <goal>revision</goal>
-                        </goals>
-                        <phase>validate</phase>
-                    </execution>
-                </executions>
-                <configuration>
-                    <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-release-plugin</artifactId>
-                <version>3.0.0-M1</version>
-                <configuration>
-                    <tagNameFormat>@{project.version}</tagNameFormat>
-                    <allowTimestampedSnapshots>true</allowTimestampedSnapshots>
-                </configuration>
-            </plugin>
         </plugins>
+
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -191,12 +191,13 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!--PaperLib dependency-->
+        <!-- Annotations for nullity and other behaviors -->
         <dependency>
-            <groupId>io.papermc</groupId>
-            <artifactId>paperlib</artifactId>
-            <version>1.0.2</version>
-            <scope>compile</scope>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>23.0.0</version>
+            <!-- Annotations are not required at runtime, only during compilation. -->
+            <scope>provided</scope>
         </dependency>
         <!-- Tests -->
         <dependency>
@@ -204,6 +205,13 @@
             <artifactId>junit-jupiter</artifactId>
             <version>5.7.0</version>
             <scope>test</scope>
+        </dependency>
+        <!--PaperLib dependency-->
+        <dependency>
+            <groupId>io.papermc</groupId>
+            <artifactId>paperlib</artifactId>
+            <version>1.0.2</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
@@ -217,4 +225,5 @@
             <url>https://repo.lemongaming.ltd/repository/maven-releases/</url>
         </repository>
     </distributionManagement>
+
 </project>
