@@ -1,0 +1,19 @@
+# This workflow will build and deploy a package using maven
+name: Maven Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+    uses: LemonGamingLtd/workflows/.github/workflows/maven-build.yml@main
+    secrets:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      MAVEN_SETTINGS: ${{ secrets.MAVEN_SETTINGS }}
+    with:
+      artifact_folders: |
+        .
