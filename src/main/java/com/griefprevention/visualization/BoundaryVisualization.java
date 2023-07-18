@@ -25,7 +25,6 @@ import java.util.stream.Stream;
 
 /**
  * A representation of a system for displaying rectangular {@link Boundary Boundaries} to {@link Player Players}.
- *
  * This is used to display claim areas, visualize affected area during nature restoration, and more.
  */
 public abstract class BoundaryVisualization
@@ -67,7 +66,7 @@ public abstract class BoundaryVisualization
      * @param player the visualization target
      * @param playerData the {@link PlayerData} of the visualization target
      */
-    private void apply(@NotNull Player player, @NotNull PlayerData playerData)
+    protected void apply(@NotNull Player player, @NotNull PlayerData playerData)
     {
         // Remember the visualization so it can be reverted.
         playerData.setVisibleBoundaries(this);
@@ -102,7 +101,7 @@ public abstract class BoundaryVisualization
                 GriefPrevention.instance,
                 () -> {
                     // Only revert if this is the active visualization.
-                    if (playerData.getVisibleBoundaries() == this) revert(player);
+                    if (playerData.getVisibleBoundaries() == this) playerData.setVisibleBoundaries(null);
                 },
                 20L * 60);
     }
@@ -255,10 +254,22 @@ public abstract class BoundaryVisualization
         Bukkit.getPluginManager().callEvent(event);
 
         Player player = event.getPlayer();
-        BoundaryVisualization visualization = event.getProvider().create(player.getWorld(), event.getCenter(), event.getHeight());
-        event.getBoundaries().stream().filter(Objects::nonNull).forEach(visualization.elements::add);
-
         PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
+        BoundaryVisualization currentVisualization = playerData.getVisibleBoundaries();
+
+        Collection<Boundary> boundaries = event.getBoundaries();
+        boundaries.removeIf(Objects::isNull);
+
+        if (currentVisualization != null
+                && currentVisualization.elements.equals(boundaries)
+                && currentVisualization.visualizeFrom.distanceSquared(event.getCenter()) < 165)
+        {
+            // Ignore visualizations with duplicate boundaries if the viewer has moved fewer than 15 blocks.
+            return;
+        }
+
+        BoundaryVisualization visualization = event.getProvider().create(player.getWorld(), event.getCenter(), event.getHeight());
+        visualization.elements.addAll(boundaries);
 
         // If they have a visualization active, clear it first.
         playerData.setVisibleBoundaries(null);
