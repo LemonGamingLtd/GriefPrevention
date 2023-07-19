@@ -23,6 +23,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 
 //FEATURE: give players claim blocks for playing, as long as they're not away from their computer
 
@@ -53,7 +54,7 @@ class DeliverClaimBlocksTask implements Runnable
             for (Player onlinePlayer : players)
             {
                 DeliverClaimBlocksTask newTask = new DeliverClaimBlocksTask(onlinePlayer, instance);
-                instance.getServer().getScheduler().scheduleSyncDelayedTask(instance, newTask, i++);
+                GriefPrevention.scheduler.getImpl().runAtEntityLater(onlinePlayer, newTask, 50L * i++, TimeUnit.MILLISECONDS);
             }
 
             return; //tasks started for each player

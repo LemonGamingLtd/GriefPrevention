@@ -27,6 +27,7 @@ import org.bukkit.entity.Vehicle;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 //FEATURE: creative mode worlds get a regular entity cleanup
 
@@ -142,6 +143,6 @@ class EntityCleanupTask implements Runnable
         }
 
         EntityCleanupTask task = new EntityCleanupTask(nextRunPercentageStart);
-        GriefPrevention.instance.getServer().getScheduler().scheduleSyncDelayedTask(GriefPrevention.instance, task, 20L * 60 * 1);
+        GriefPrevention.scheduler.getImpl().runLater(task, 1L, TimeUnit.MINUTES);
     }
 }
