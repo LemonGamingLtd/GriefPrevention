@@ -50,7 +50,7 @@ class DeliverClaimBlocksTask implements Runnable
             @SuppressWarnings("unchecked")
             Collection<Player> players = (Collection<Player>) GriefPrevention.instance.getServer().getOnlinePlayers();
 
-            long i = 0;
+            long i = 1;
             for (Player onlinePlayer : players)
             {
                 DeliverClaimBlocksTask newTask = new DeliverClaimBlocksTask(onlinePlayer, instance);
