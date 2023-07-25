@@ -20,6 +20,7 @@ package me.ryanhamshire.GriefPrevention;
 
 import org.bukkit.entity.Player;
 
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 //checks to see whether or not a siege should end based on the locations of the players
@@ -107,6 +108,6 @@ class SiegeCheckupTask implements Runnable
     //schedules another checkup later
     private void scheduleAnotherCheck()
     {
-        this.siegeData.checkupTaskID = GriefPrevention.instance.getServer().getScheduler().scheduleSyncDelayedTask(GriefPrevention.instance, this, 20L * 30);
+        this.siegeData.checkupTask = GriefPrevention.scheduler.getImpl().runAtEntityLater(siegeData.defender, this, 30L, TimeUnit.SECONDS);
     }
 }

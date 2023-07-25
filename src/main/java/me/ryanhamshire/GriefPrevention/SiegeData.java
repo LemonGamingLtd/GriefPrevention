@@ -18,6 +18,7 @@
 
 package me.ryanhamshire.GriefPrevention;
 
+import com.tcoded.folialib.wrapper.WrappedTask;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -28,7 +29,7 @@ public class SiegeData
     public Player defender;
     public Player attacker;
     public ArrayList<Claim> claims;
-    public int checkupTaskID;
+    public WrappedTask checkupTask;
 
     public SiegeData(Player attacker, Player defender, Claim claim)
     {

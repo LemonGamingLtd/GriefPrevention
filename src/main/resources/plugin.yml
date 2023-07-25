@@ -2,10 +2,12 @@ commit-hash: ${git.commit.id.describe-short}
 git-repo: LemonGamingLtd/GriefPrevention
 name: GriefPrevention
 main: me.ryanhamshire.GriefPrevention.GriefPrevention
+depend: [LGCore]
 softdepend: [Vault, Multiverse-Core, My_Worlds, MystCraft, Transporter, WorldGuard, WorldEdit, RoyalCommands, MultiWorld, Denizen, CommandHelper]
 dev-url: https://dev.bukkit.org/projects/grief-prevention
 version: '${git.commit.id.describe}'
 api-version: '1.17'
+folia-supported: true
 commands:
     abandonclaim:
       description: Deletes a claim.

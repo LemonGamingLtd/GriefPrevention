@@ -47,8 +47,8 @@ class AutoExtendClaimTask implements Runnable
                     Chunk chunk = world.getChunkAt(chunkX, chunkZ);
 
                     // If we're on the main thread, access to tile entities will speed up the process.
-                    if (Bukkit.isPrimaryThread())
-                    {
+//                    if (Bukkit.isPrimaryThread())
+//                    {
                         // Find the lowest non-natural storage block in the chunk.
                         // This way chests, barrels, etc. are always protected even if player block definitions are lacking.
                         lowestLootableTile = Math.min(lowestLootableTile, Arrays.stream(chunk.getTileEntities())
@@ -59,7 +59,7 @@ class AutoExtendClaimTask implements Runnable
                                 .filter(tile -> tile instanceof Lootable lootable && lootable.getLootTable() == null)
                                 // Return smallest value or default to existing min Y if no eligible tiles are present.
                                 .mapToInt(BlockState::getY).min().orElse(lowestLootableTile));
-                    }
+//                    }
 
                     // Save a snapshot of the chunk for more detailed async block searching.
                     snapshots.add(chunk.getChunkSnapshot(false, true, false));
@@ -67,8 +67,8 @@ class AutoExtendClaimTask implements Runnable
             }
         }
 
-        Bukkit.getScheduler().runTaskAsynchronously(
-                GriefPrevention.instance,
+        final Location location = claim.getLesserBoundaryCorner();
+        GriefPrevention.scheduler.getImpl().runAtLocation(location,
                 new AutoExtendClaimTask(claim, snapshots, world.getEnvironment(), lowestLootableTile));
     }
 
@@ -98,9 +98,10 @@ class AutoExtendClaimTask implements Runnable
     public void run()
     {
         int newY = this.getLowestBuiltY();
-        if (newY < this.claim.getLesserBoundaryCorner().getBlockY())
+        Location location = this.claim.getLesserBoundaryCorner();
+        if (newY < location.getBlockY())
         {
-            Bukkit.getScheduler().runTask(GriefPrevention.instance, new ExecuteExtendClaimTask(claim, newY));
+            GriefPrevention.scheduler.getImpl().runAtLocation(location, new ExecuteExtendClaimTask(claim, newY));
         }
     }
 

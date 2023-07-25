@@ -4,7 +4,7 @@
 
     <groupId>com.griefprevention</groupId>
     <artifactId>GriefPrevention</artifactId>
-    <version>16.18.2-SNAPSHOT</version>
+    <version>16.18.3-SNAPSHOT</version>
 
     <name>GriefPrevention</name>
     <description>The official self-service anti-griefing Bukkit plugin for Minecraft servers since 2011.</description>
@@ -49,6 +49,10 @@
         <repository>
             <id>essx-repo</id>
             <url>https://ci.ender.zone/plugin/repository/everything/</url>
+        </repository>
+        <repository>
+            <id>lemongaming-repo</id>
+            <url>https://repo.lemongaming.ltd/repository/maven-public/</url>
         </repository>
     </repositories>
 
@@ -218,6 +222,19 @@
             <artifactId>paperlib</artifactId>
             <version>1.0.2</version>
             <scope>compile</scope>
+        </dependency>
+        <!-- LGCore -->
+        <dependency>
+            <groupId>ltd.lemongaming</groupId>
+            <artifactId>lg-core-spigot-plugin</artifactId>
+            <version>3.2.3-SNAPSHOT</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>ltd.lemongaming</groupId>
+                    <artifactId>paper-config-library</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 

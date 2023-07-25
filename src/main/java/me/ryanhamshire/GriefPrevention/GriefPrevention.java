@@ -20,6 +20,8 @@ package me.ryanhamshire.GriefPrevention;
 
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
+import com.tcoded.folialib.FoliaLib;
+import com.tcoded.folialib.wrapper.WrappedTask;
 import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
 import me.ryanhamshire.GriefPrevention.events.PreventBlockBreakEvent;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
@@ -53,7 +55,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -69,6 +70,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -79,6 +81,10 @@ public class GriefPrevention extends JavaPlugin
 {
     //for convenience, a reference to the instance of this plugin
     public static GriefPrevention instance;
+
+    // for convenience, a reference to the scheduler wrapper!
+
+    public static FoliaLib scheduler;
 
     //for logging to the console and log file
     private static Logger log;
@@ -278,6 +284,8 @@ public class GriefPrevention extends JavaPlugin
     public void onEnable()
     {
         instance = this;
+        scheduler = new FoliaLib(this);
+
         log = instance.getLogger();
 
         this.loadConfig();
@@ -349,16 +357,16 @@ public class GriefPrevention extends JavaPlugin
         if (this.config_claims_blocksAccruedPerHour_default > 0)
         {
             DeliverClaimBlocksTask task = new DeliverClaimBlocksTask(null, this);
-            this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task, 20L * 60 * 10, 20L * 60 * 10);
+            scheduler.getImpl().runTimer(task, 10L, 10L, TimeUnit.MINUTES);
         }
 
         //start the recurring cleanup event for entities in creative worlds
         EntityCleanupTask task = new EntityCleanupTask(0);
-        this.getServer().getScheduler().scheduleSyncDelayedTask(GriefPrevention.instance, task, 20L * 60 * 2);
+        scheduler.getImpl().runLater(task, 2L, TimeUnit.MINUTES);
 
         //start recurring cleanup scan for unused claims belonging to inactive players
         FindUnusedClaimsTask task2 = new FindUnusedClaimsTask();
-        this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task2, 20L * 60, 20L * config_advanced_claim_expiration_check_rate);
+        scheduler.getImpl().runTimer(task2, 60L, config_advanced_claim_expiration_check_rate, TimeUnit.SECONDS);
 
         //register for events
         PluginManager pluginManager = this.getServer().getPluginManager();
@@ -403,11 +411,11 @@ public class GriefPrevention extends JavaPlugin
 
         AddLogEntry("Boot finished.");
 
-        try
-        {
-            new MetricsHandler(this, dataMode);
-        }
-        catch (Throwable ignored) {}
+//        try
+//        {
+//            new MetricsHandler(this, dataMode);
+//        }
+//        catch (Throwable ignored) {}
     }
 
     private void loadConfig()
@@ -2479,7 +2487,7 @@ public class GriefPrevention extends JavaPlugin
 
             //create a task to rescue this player in a little while
             PlayerRescueTask task = new PlayerRescueTask(player, player.getLocation(), event.getDestination());
-            this.getServer().getScheduler().scheduleSyncDelayedTask(this, task, 200L);  //20L ~ 1 second
+            scheduler.getImpl().runAtEntityLater(player, task, 10L, TimeUnit.SECONDS);
 
             return true;
         }
@@ -3297,7 +3305,7 @@ public class GriefPrevention extends JavaPlugin
 
             //start a task to re-check this player's inventory every minute until his immunity is gone
             PvPImmunityValidationTask task = new PvPImmunityValidationTask(player);
-            this.getServer().getScheduler().scheduleSyncDelayedTask(this, task, 1200L);
+            scheduler.getImpl().runAtEntityLater(player, task, 1L, TimeUnit.MINUTES);
         }
     }
 
@@ -3401,7 +3409,7 @@ public class GriefPrevention extends JavaPlugin
         //Only schedule if there should be a delay. Otherwise, send the message right now, else the message will appear out of order.
         if (delayInTicks > 0)
         {
-            GriefPrevention.instance.getServer().getScheduler().runTaskLater(GriefPrevention.instance, task, delayInTicks);
+            scheduler.getImpl().runAtEntityLater(player, task, delayInTicks * 50L, TimeUnit.MILLISECONDS);
         }
         else
         {
@@ -3590,7 +3598,7 @@ public class GriefPrevention extends JavaPlugin
         //create task
         //when done processing, this task will create a main thread task to actually update the world with processing results
         RestoreNatureProcessingTask task = new RestoreNatureProcessingTask(snapshots, miny, chunk.getWorld().getEnvironment(), lesserBoundaryCorner.getBlock().getBiome(), lesserBoundaryCorner, greaterBoundaryCorner, this.getSeaLevel(chunk.getWorld()), aggressiveMode, GriefPrevention.instance.creativeRulesApply(lesserBoundaryCorner), playerReceivingVisualization);
-        GriefPrevention.instance.getServer().getScheduler().runTaskLaterAsynchronously(GriefPrevention.instance, task, delayInTicks);
+        scheduler.getImpl().runAtLocationLater(lesserBoundaryCorner, task, delayInTicks * 50L, TimeUnit.MILLISECONDS);
     }
 
     private Set<Material> parseMaterialListFromConfig(List<String> stringsToParse)
@@ -3779,12 +3787,12 @@ public class GriefPrevention extends JavaPlugin
 	*/
 
     //Track scheduled "rescues" so we can cancel them if the player happens to teleport elsewhere so we can cancel it.
-    ConcurrentHashMap<UUID, BukkitTask> portalReturnTaskMap = new ConcurrentHashMap<>();
+    ConcurrentHashMap<UUID, WrappedTask> portalReturnTaskMap = new ConcurrentHashMap<>();
 
     public void startRescueTask(Player player, Location location)
     {
         //Schedule task to reset player's portal cooldown after 30 seconds (Maximum timeout time for client, in case their network is slow and taking forever to load chunks)
-        BukkitTask task = new CheckForPortalTrapTask(player, this, location).runTaskLater(GriefPrevention.instance, 600L);
+        WrappedTask task = scheduler.getImpl().runAtLocationLater(location, new CheckForPortalTrapTask(player, this, location), 30L, TimeUnit.SECONDS);
 
         //Cancel existing rescue task
         if (portalReturnTaskMap.containsKey(player.getUniqueId()))
