@@ -227,7 +227,7 @@
         <dependency>
             <groupId>ltd.lemongaming</groupId>
             <artifactId>lg-core-spigot-plugin</artifactId>
-            <version>3.2.3-SNAPSHOT</version>
+            <version>3.2.4</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
