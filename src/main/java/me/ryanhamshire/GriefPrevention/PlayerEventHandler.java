@@ -20,7 +20,7 @@ package me.ryanhamshire.GriefPrevention;
 
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
-import com.tcoded.folialib.wrapper.WrappedTask;
+import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
 import me.ryanhamshire.GriefPrevention.events.ClaimInspectionEvent;
 import me.ryanhamshire.GriefPrevention.util.BoundingBox;
 import org.bukkit.BanList;

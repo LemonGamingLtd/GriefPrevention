@@ -18,7 +18,7 @@
 
 package me.ryanhamshire.GriefPrevention;
 
-import com.tcoded.folialib.wrapper.WrappedTask;
+import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;

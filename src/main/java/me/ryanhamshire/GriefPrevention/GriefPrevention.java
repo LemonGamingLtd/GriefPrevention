@@ -20,8 +20,8 @@ package me.ryanhamshire.GriefPrevention;
 
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
-import com.tcoded.folialib.FoliaLib;
-import com.tcoded.folialib.wrapper.WrappedTask;
+import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.FoliaLib;
+import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
 import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
 import me.ryanhamshire.GriefPrevention.events.PreventBlockBreakEvent;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
