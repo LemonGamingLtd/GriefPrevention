@@ -3703,7 +3703,7 @@ public class GriefPrevention extends JavaPlugin
         }
         else
         {
-            BanList bans = Bukkit.getServer().getBanList(Type.NAME);
+            BanList<?> bans = Bukkit.getServer().getBanList(Type.NAME);
             bans.addBan(player.getName(), reason, null, source);
 
             //kick
