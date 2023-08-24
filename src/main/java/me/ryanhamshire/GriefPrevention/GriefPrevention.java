@@ -3359,7 +3359,7 @@ public class GriefPrevention extends JavaPlugin
                 GuaranteeChunkLoaded(candidateLocation);
                 Block highestBlock = candidateLocation.getWorld().getHighestBlockAt(candidateLocation.getBlockX(), candidateLocation.getBlockZ());
                 Location destination = new Location(highestBlock.getWorld(), highestBlock.getX(), highestBlock.getY() + 2, highestBlock.getZ());
-                player.teleport(destination);
+                player.teleportAsync(destination);
                 return destination;
             }
         }
