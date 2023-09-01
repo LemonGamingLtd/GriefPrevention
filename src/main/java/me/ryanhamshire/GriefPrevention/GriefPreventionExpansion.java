@@ -144,7 +144,7 @@ public class GriefPreventionExpansion extends PlaceholderExpansion implements Co
         */
 
         if (identifier.startsWith("totalclaims")) {
-            int totalClaims = pd.getClaims().size() + pd.getAccruedClaimBlocks();
+            int totalClaims = pd.getBonusClaimBlocks() + pd.getAccruedClaimBlocks();
             return identifier.endsWith("formatted") ? fixMoney(totalClaims) : String.valueOf(totalClaims);
         }
 
@@ -154,7 +154,7 @@ public class GriefPreventionExpansion extends PlaceholderExpansion implements Co
         */
 
         if (identifier.startsWith("usedclaims")) {
-            int totalClaims = pd.getClaims().size() + pd.getAccruedClaimBlocks();
+            int totalClaims = pd.getBonusClaimBlocks() + pd.getAccruedClaimBlocks();
             int remainingClaims = pd.getRemainingClaimBlocks();
 
             int usedClaims = totalClaims - remainingClaims;
