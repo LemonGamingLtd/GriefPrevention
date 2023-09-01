@@ -408,13 +408,17 @@ public class GriefPrevention extends JavaPlugin
             new IgnoreLoaderThread(player.getUniqueId(), this.dataStore.getPlayerData(player.getUniqueId()).ignoredPlayers).start();
         }
 
-        AddLogEntry("Boot finished.");
+        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            new GriefPreventionExpansion(this).register();
+            getLogger().info("Successfully registered placeholder expansion for GriefPrevention!");
+        }
 
 //        try
 //        {
 //            new MetricsHandler(this, dataMode);
 //        }
 //        catch (Throwable ignored) {}
+        AddLogEntry("Boot finished.");
     }
 
     private void loadConfig()
