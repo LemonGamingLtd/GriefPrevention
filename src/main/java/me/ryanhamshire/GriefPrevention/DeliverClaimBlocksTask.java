@@ -92,7 +92,7 @@ class DeliverClaimBlocksTask implements Runnable
         try
         {
             //determine how fast blocks accrue for this player //RoboMWM: addons determine this instead
-            int accrualRate = instance.config_claims_blocksAccruedPerHour_default;
+            int accrualRate = instance.getBlocksAccruedPerHour(player);
 
             //determine idle accrual rate when idle
             if (isIdle)

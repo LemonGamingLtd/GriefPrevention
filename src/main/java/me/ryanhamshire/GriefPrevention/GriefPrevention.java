@@ -52,6 +52,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -107,6 +108,9 @@ public class GriefPrevention extends JavaPlugin
 
     //claim mode for each world
     public ConcurrentHashMap<World, ClaimsMode> config_claims_worldModes;
+
+    private static final String BLOCKS_ACCRUED_PERMISSION_NODE = "griefprevention.accrued.";
+
     private boolean config_creativeWorldsExist;                     //note on whether there are any creative mode worlds, to save cpu cycles on a common hash lookup
 
     public boolean config_claims_preventGlobalMonsterEggs; //whether monster eggs can be placed regardless of trust.
@@ -3802,5 +3806,16 @@ public class GriefPrevention extends JavaPlugin
             portalReturnTaskMap.put(player.getUniqueId(), task).cancel();
         else
             portalReturnTaskMap.put(player.getUniqueId(), task);
+    }
+
+    public int getBlocksAccruedPerHour(@NotNull Player player) {
+        return player.getEffectivePermissions().stream()
+                .filter(PermissionAttachmentInfo::getValue)
+                .map(PermissionAttachmentInfo::getPermission)
+                .filter(node -> node.startsWith(BLOCKS_ACCRUED_PERMISSION_NODE))
+                .map(node -> node.replace(BLOCKS_ACCRUED_PERMISSION_NODE, ""))
+                .mapToInt(Integer::parseInt)
+                .max()
+                .orElse(config_claims_blocksAccruedPerHour_default);
     }
 }
