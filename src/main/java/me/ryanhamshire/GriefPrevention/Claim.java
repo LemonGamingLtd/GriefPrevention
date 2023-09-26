@@ -40,6 +40,8 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -52,6 +54,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 //represents a player claim
 //creating an instance doesn't make an effective claim
@@ -827,6 +830,14 @@ public class Claim
         if (!Objects.equals(this.lesserBoundaryCorner.getWorld(), otherClaim.getLesserBoundaryCorner().getWorld())) return false;
 
         return new BoundingBox(this).intersects(new BoundingBox(otherClaim));
+    }
+
+    public Collection<Entity> getEntities() {
+        return getChunks().stream().map(Chunk::getEntities).flatMap(Arrays::stream).toList();
+    }
+
+    public <T extends Entity> Collection<T> getEntities(Class<? extends T> entityClass) {
+        return getEntities().stream().filter(entity -> entity.getClass().isAssignableFrom(entityClass)).map(entity -> (T) entity).toList();
     }
 
     //whether more entities may be added to a claim
