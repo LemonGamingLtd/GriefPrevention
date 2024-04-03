@@ -55,6 +55,7 @@ import org.bukkit.entity.Tameable;
 import org.bukkit.entity.Vehicle;
 import org.bukkit.entity.minecart.PoweredMinecart;
 import org.bukkit.entity.minecart.StorageMinecart;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -1623,6 +1624,10 @@ class PlayerEventHandler implements Listener
     void onPlayerInteract(PlayerInteractEvent event)
     {
         //not interested in left-click-on-air actions
+        if (event.useInteractedBlock() == Event.Result.DENY || event.useItemInHand() == Event.Result.DENY) {
+            return;
+        }
+
         Action action = event.getAction();
         if (action == Action.LEFT_CLICK_AIR) return;
 
