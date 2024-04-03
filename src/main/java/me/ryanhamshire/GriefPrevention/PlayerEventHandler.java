@@ -1443,14 +1443,25 @@ class PlayerEventHandler implements Listener
         //if he's switching to the golden shovel
         int newSlot = event.getNewSlot();
         ItemStack newItemStack = player.getInventory().getItem(newSlot);
-        if (newItemStack != null && newItemStack.getType() == instance.config_claims_modificationTool)
+        //give the player his available claim blocks count and claiming instructions, but only if he keeps the shovel equipped for a minimum time, to avoid mouse wheel spam
+        if (!instance.claimsEnabledForWorld(player.getWorld()))
         {
-            //give the player his available claim blocks count and claiming instructions, but only if he keeps the shovel equipped for a minimum time, to avoid mouse wheel spam
-            if (instance.claimsEnabledForWorld(player.getWorld()))
-            {
-                EquipShovelProcessingTask task = new EquipShovelProcessingTask(player);
-                GriefPrevention.scheduler.getImpl().runAtEntityLater(player, task, 750L, TimeUnit.SECONDS);  //15L is approx. 3/4 of a second
+            return;
+        }
+
+        if (newItemStack == null || newItemStack.getType().isEmpty()) {
+            PlayerData playerData = dataStore.getPlayerData(player.getUniqueId());
+            if (playerData.lastShovelLocation == null) { // not in selection mode
+                return;
             }
+            playerData.lastShovelLocation = null; // cancel ongoing claim
+            playerData.setVisibleBoundaries(null);
+            return;
+        }
+
+        if (newItemStack.getType() == instance.config_claims_modificationTool) {
+            EquipShovelProcessingTask task = new EquipShovelProcessingTask(player);
+            GriefPrevention.scheduler.getImpl().runAtEntityLater(player, task, 1L, TimeUnit.SECONDS);  //15L is approx. 3/4 of a second
         }
     }
 
