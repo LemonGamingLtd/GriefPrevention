@@ -29,8 +29,6 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
@@ -101,9 +99,6 @@ public class Claim
     //note subdivisions themselves never have children
     public ArrayList<Claim> children = new ArrayList<>();
 
-    //information about a siege involving this claim.  null means no siege is impacting this claim
-    public SiegeData siegeData = null;
-
     //following a siege, buttons/levers are unlocked temporarily.  this represents that state
     public boolean doorsOpen = false;
 
@@ -125,17 +120,6 @@ public class Claim
     Claim()
     {
         this.modifiedDate = Calendar.getInstance().getTime();
-    }
-
-    //players may only siege someone when he's not in an admin claim
-    //and when he has some level of permission in the claim
-    public boolean canSiege(Player defender)
-    {
-        if (this.isAdminClaim()) return false;
-
-        if (this.checkPermission(defender, ClaimPermission.Access, null) != null) return false;
-
-        return true;
     }
 
     //removes any lava above sea level in a claim
@@ -228,8 +212,25 @@ public class Claim
         this.id = id;
 
         //store corners
-        this.lesserBoundaryCorner = lesserBoundaryCorner;
-        this.greaterBoundaryCorner = greaterBoundaryCorner;
+        this.lesserBoundaryCorner = lesserBoundaryCorner.clone();
+        this.greaterBoundaryCorner = greaterBoundaryCorner.clone();
+
+        // Sanitize corners
+        int x1 = this.lesserBoundaryCorner.getBlockX();
+        int x2 = this.greaterBoundaryCorner.getBlockX();
+        if (x1 > x2)
+        {
+            this.greaterBoundaryCorner.setX(x1);
+            this.lesserBoundaryCorner.setX(x2);
+        }
+        int z1 = this.lesserBoundaryCorner.getBlockZ();
+        int z2 = this.greaterBoundaryCorner.getBlockZ();
+        if (z1 > z2)
+        {
+            this.greaterBoundaryCorner.setZ(z1);
+            this.lesserBoundaryCorner.setZ(z2);
+        }
+        this.lesserBoundaryCorner.setY(Math.min(this.lesserBoundaryCorner.getBlockY(), this.greaterBoundaryCorner.getBlockY()));
 
         //owner
         this.ownerID = ownerID;
@@ -280,7 +281,6 @@ public class Claim
         this.parent = claim.parent;
         this.inheritNothing = claim.inheritNothing;
         this.children = new ArrayList<>(claim.children);
-        this.siegeData = claim.siegeData;
         this.doorsOpen = claim.doorsOpen;
     }
 
@@ -840,76 +840,17 @@ public class Claim
         return getEntities().stream().filter(entity -> entity.getClass().isAssignableFrom(entityClass)).map(entity -> (T) entity).toList();
     }
 
-    //whether more entities may be added to a claim
-    public String allowMoreEntities(boolean remove)
+    @Deprecated(since = "17.0.0", forRemoval = true)
+    @Contract("_ -> null")
+    public @Nullable String allowMoreEntities(boolean remove)
     {
-        if (this.parent != null) return this.parent.allowMoreEntities(remove);
-
-        //this rule only applies to creative mode worlds
-        if (!GriefPrevention.instance.creativeRulesApply(this.getLesserBoundaryCorner())) return null;
-
-        //admin claims aren't restricted
-        if (this.isAdminClaim()) return null;
-
-        //don't apply this rule to very large claims
-        if (this.getArea() > 10000) return null;
-
-        //determine maximum allowable entity count, based on claim size
-        int maxEntities = this.getArea() / 50;
-        if (maxEntities == 0) return GriefPrevention.instance.dataStore.getMessage(Messages.ClaimTooSmallForEntities);
-
-        //count current entities (ignoring players)
-        int totalEntities = 0;
-        ArrayList<Chunk> chunks = this.getChunks();
-        for (Chunk chunk : chunks)
-        {
-            Entity[] entities = chunk.getEntities();
-            for (Entity entity : entities)
-            {
-                if (!(entity instanceof Player) && this.contains(entity.getLocation(), false, false))
-                {
-                    totalEntities++;
-                    if (remove && totalEntities > maxEntities) entity.remove();
-                }
-            }
-        }
-
-        if (totalEntities >= maxEntities)
-            return GriefPrevention.instance.dataStore.getMessage(Messages.TooManyEntitiesInClaim);
-
         return null;
     }
 
-    public String allowMoreActiveBlocks()
+    @Deprecated(since = "17.0.0", forRemoval = true)
+    @Contract("-> null")
+    public @Nullable String allowMoreActiveBlocks()
     {
-        if (this.parent != null) return this.parent.allowMoreActiveBlocks();
-
-        //determine maximum allowable entity count, based on claim size
-        int maxActives = this.getArea() / 100;
-        if (maxActives == 0)
-            return GriefPrevention.instance.dataStore.getMessage(Messages.ClaimTooSmallForActiveBlocks);
-
-        //count current actives
-        int totalActives = 0;
-        ArrayList<Chunk> chunks = this.getChunks();
-        for (Chunk chunk : chunks)
-        {
-            BlockState[] actives = chunk.getTileEntities();
-            for (BlockState active : actives)
-            {
-                if (BlockEventHandler.isActiveBlock(active))
-                {
-                    if (this.contains(active.getLocation(), false, false))
-                    {
-                        totalActives++;
-                    }
-                }
-            }
-        }
-
-        if (totalActives >= maxActives)
-            return GriefPrevention.instance.dataStore.getMessage(Messages.TooManyActiveBlocksInClaim);
-
         return null;
     }
 

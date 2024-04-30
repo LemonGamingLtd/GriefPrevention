@@ -41,21 +41,14 @@ class RestoreNatureProcessingTask implements Runnable
     // Definitions of biomes with particularly dense log distribution. These biomes will not have logs reduced.
     private static final Set<NamespacedKey> DENSE_LOG_BIOMES = Set.of(
             NamespacedKey.minecraft("jungle"),
-            NamespacedKey.minecraft("bamboo_jungle"),
-            // Variants for versions < 1.18
-            NamespacedKey.minecraft("modified_jungle"),
-            NamespacedKey.minecraft("jungle_hills"),
-            NamespacedKey.minecraft("bamboo_jungle_hills")
+            NamespacedKey.minecraft("bamboo_jungle")
     );
 
     // Definitions of biomes where sand covers surfaces instead of grass.
     private static final Set<NamespacedKey> SAND_SOIL_BIOMES = Set.of(
             NamespacedKey.minecraft("snowy_beach"),
             NamespacedKey.minecraft("beach"),
-            NamespacedKey.minecraft("desert"),
-            // Variants for versions < 1.18
-            NamespacedKey.minecraft("desert_hills"),
-            NamespacedKey.minecraft("desert_lakes")
+            NamespacedKey.minecraft("desert")
     );
 
     //world information captured from the main thread
@@ -95,7 +88,7 @@ class RestoreNatureProcessingTask implements Runnable
 
         this.notAllowedToHang = new HashSet<>();
         this.notAllowedToHang.add(Material.DIRT);
-        this.notAllowedToHang.add(Material.GRASS);
+        this.notAllowedToHang.add(Material.SHORT_GRASS);
         this.notAllowedToHang.add(Material.SNOW);
         this.notAllowedToHang.add(Material.OAK_LOG);
         this.notAllowedToHang.add(Material.SPRUCE_LOG);
@@ -106,7 +99,7 @@ class RestoreNatureProcessingTask implements Runnable
 
         if (this.aggressiveMode)
         {
-            this.notAllowedToHang.add(Material.GRASS);
+            this.notAllowedToHang.add(Material.SHORT_GRASS);
             this.notAllowedToHang.add(Material.STONE);
         }
 
@@ -118,31 +111,22 @@ class RestoreNatureProcessingTask implements Runnable
         //like a single-block tower of iron ore or a giant penis constructed with melons
         if (this.aggressiveMode || this.creativeMode)
         {
-            this.playerBlocks.add(Material.IRON_ORE);
-            this.playerBlocks.add(Material.GOLD_ORE);
-            this.playerBlocks.add(Material.DIAMOND_ORE);
+            this.playerBlocks.addAll(Tag.COPPER_ORES.getValues());
+            this.playerBlocks.addAll(Tag.IRON_ORES.getValues());
+            this.playerBlocks.addAll(Tag.GOLD_ORES.getValues());
+            this.playerBlocks.addAll(Tag.DIAMOND_ORES.getValues());
+            this.playerBlocks.addAll(Tag.COAL_ORES.getValues());
             this.playerBlocks.add(Material.MELON);
             this.playerBlocks.add(Material.MELON_STEM);
             this.playerBlocks.add(Material.BEDROCK);
-            this.playerBlocks.add(Material.COAL_ORE);
             this.playerBlocks.add(Material.PUMPKIN);
             this.playerBlocks.add(Material.PUMPKIN_STEM);
         }
 
         if (this.aggressiveMode)
         {
-            this.playerBlocks.add(Material.OAK_LEAVES);
-            this.playerBlocks.add(Material.SPRUCE_LEAVES);
-            this.playerBlocks.add(Material.BIRCH_LEAVES);
-            this.playerBlocks.add(Material.JUNGLE_LEAVES);
-            this.playerBlocks.add(Material.ACACIA_LEAVES);
-            this.playerBlocks.add(Material.DARK_OAK_LEAVES);
-            this.playerBlocks.add(Material.OAK_LOG);
-            this.playerBlocks.add(Material.SPRUCE_LOG);
-            this.playerBlocks.add(Material.BIRCH_LOG);
-            this.playerBlocks.add(Material.JUNGLE_LOG);
-            this.playerBlocks.add(Material.ACACIA_LOG);
-            this.playerBlocks.add(Material.DARK_OAK_LOG);
+            this.playerBlocks.addAll(Tag.LEAVES.getValues());
+            this.playerBlocks.addAll(Tag.LOGS.getValues());
             this.playerBlocks.add(Material.VINE);
         }
     }
@@ -395,7 +379,7 @@ class RestoreNatureProcessingTask implements Runnable
         Material[] excludedBlocksArray = new Material[]
                 {
                         Material.CACTUS,
-                        Material.GRASS,
+                        Material.SHORT_GRASS,
                         Material.RED_MUSHROOM,
                         Material.BROWN_MUSHROOM,
                         Material.DEAD_BUSH,
@@ -483,10 +467,10 @@ class RestoreNatureProcessingTask implements Runnable
         fillableBlocks.add(Material.AIR);
         fillableBlocks.add(Material.WATER);
         fillableBlocks.add(Material.LAVA);
-        fillableBlocks.add(Material.GRASS);
+        fillableBlocks.add(Material.SHORT_GRASS);
 
         ArrayList<Material> notSuitableForFillBlocks = new ArrayList<>();
-        notSuitableForFillBlocks.add(Material.GRASS);
+        notSuitableForFillBlocks.add(Material.SHORT_GRASS);
         notSuitableForFillBlocks.add(Material.CACTUS);
         notSuitableForFillBlocks.add(Material.WATER);
         notSuitableForFillBlocks.add(Material.LAVA);
@@ -680,7 +664,7 @@ class RestoreNatureProcessingTask implements Runnable
         playerBlocks.addAll(Tag.CAMPFIRES.getValues());
         playerBlocks.addAll(Tag.CANDLE_CAKES.getValues());
         playerBlocks.addAll(Tag.CANDLES.getValues());
-        playerBlocks.addAll(Tag.CARPETS.getValues());
+        playerBlocks.addAll(Tag.WOOL_CARPETS.getValues());
         playerBlocks.addAll(Tag.CAULDRONS.getValues());
         playerBlocks.addAll(Tag.DOORS.getValues());
         playerBlocks.addAll(Tag.FENCE_GATES.getValues());
@@ -797,6 +781,7 @@ class RestoreNatureProcessingTask implements Runnable
         playerBlocks.add(Material.RAW_IRON_BLOCK);
         playerBlocks.add(Material.RAW_GOLD_BLOCK);
         playerBlocks.add(Material.LIGHTNING_ROD);
+        playerBlocks.add(Material.DECORATED_POT);
 
         //these are unnatural in the nether and end
         if (environment != Environment.NORMAL && environment != Environment.CUSTOM)
