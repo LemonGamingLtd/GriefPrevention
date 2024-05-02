@@ -45,7 +45,7 @@ commands:
     permissiontrust:
       description: Grants a player permission to grant his level of permission to others.
       usage: /<command> <player>.  Permits a player to share his permission level with others.
-      aliases: pt
+      aliases: [pt, managertrust, mt]
       permission: griefprevention.claims
     subdivideclaims:
       description: Switches the shovel tool to subdivision mode, used to subdivide your claims.
