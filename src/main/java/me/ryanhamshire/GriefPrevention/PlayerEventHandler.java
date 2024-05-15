@@ -1513,10 +1513,6 @@ class PlayerEventHandler implements Listener
     void onPlayerInteract(PlayerInteractEvent event)
     {
         //not interested in left-click-on-air actions
-        if (event.useInteractedBlock() == Event.Result.DENY && event.useItemInHand() == Event.Result.DENY) {
-            return;
-        }
-
         Action action = event.getAction();
         if (action == Action.LEFT_CLICK_AIR) return;
 
