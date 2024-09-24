@@ -22,10 +22,10 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.griefprevention.commands.ClaimCommand;
 import com.griefprevention.metrics.MetricsHandler;
+import com.griefprevention.protection.ProtectionHelper;
 import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.FoliaLib;
 import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
 import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
-import me.ryanhamshire.GriefPrevention.events.PreventBlockBreakEvent;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
 import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
 import org.bukkit.BanList;
@@ -33,7 +33,6 @@ import org.bukkit.BanList.Type;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
-import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -56,11 +55,15 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.profile.PlayerProfile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -68,12 +71,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -148,8 +153,6 @@ public class GriefPrevention extends JavaPlugin
     public int config_claims_minArea;                               //minimum area for non-admin claims
 
     public int config_claims_chestClaimExpirationDays;                //number of days of inactivity before an automatic chest claim will be deleted
-    public int config_claims_unusedClaimExpirationDays;                //number of days of inactivity before an unused (nothing build) claim will be deleted
-    public boolean config_claims_survivalAutoNatureRestoration;        //whether survival claims will be automatically restored to nature when auto-deleted
     public boolean config_claims_allowTrappedInAdminClaims;            //whether it should be allowed to use /trapped in adminclaims.
 
     public Material config_claims_investigationTool;                //which material will be used to investigate claims with a right click
@@ -577,11 +580,9 @@ public class GriefPrevention extends JavaPlugin
             AddLogEntry("Updated default value for GriefPrevention.Claims.MaximumDepth to " + Integer.MIN_VALUE);
         }
         this.config_claims_chestClaimExpirationDays = config.getInt("GriefPrevention.Claims.Expiration.ChestClaimDays", 7);
-        this.config_claims_unusedClaimExpirationDays = config.getInt("GriefPrevention.Claims.Expiration.UnusedClaimDays", 14);
         this.config_claims_expirationDays = config.getInt("GriefPrevention.Claims.Expiration.AllClaims.DaysInactive", 60);
         this.config_claims_expirationExemptionTotalBlocks = config.getInt("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasTotalClaimBlocks", 10000);
         this.config_claims_expirationExemptionBonusBlocks = config.getInt("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasBonusClaimBlocks", 5000);
-        this.config_claims_survivalAutoNatureRestoration = config.getBoolean("GriefPrevention.Claims.Expiration.AutomaticNatureRestoration.SurvivalWorlds", false);
         this.config_claims_allowTrappedInAdminClaims = config.getBoolean("GriefPrevention.Claims.AllowTrappedInAdminClaims", false);
 
         this.config_claims_maxClaimsPerPlayer = config.getInt("GriefPrevention.Claims.MaximumNumberOfClaimsPerPlayer", 0);
@@ -689,9 +690,7 @@ public class GriefPrevention extends JavaPlugin
         this.config_pvp_protectPets = config.getBoolean("GriefPrevention.PvP.ProtectPetsOutsideLandClaims", false);
 
         //optional database settings
-        this.databaseUrl = config.getString("GriefPrevention.Database.URL", "");
-        this.databaseUserName = config.getString("GriefPrevention.Database.UserName", "");
-        this.databasePassword = config.getString("GriefPrevention.Database.Password", "");
+        loadDatabaseSettings(config);
 
         this.config_advanced_fixNegativeClaimblockAmounts = config.getBoolean("GriefPrevention.Advanced.fixNegativeClaimblockAmounts", true);
         this.config_advanced_claim_expiration_check_rate = config.getInt("GriefPrevention.Advanced.ClaimExpirationCheckRate", 60);
@@ -741,11 +740,9 @@ public class GriefPrevention extends JavaPlugin
         outConfig.set("GriefPrevention.Claims.InvestigationTool", this.config_claims_investigationTool.name());
         outConfig.set("GriefPrevention.Claims.ModificationTool", this.config_claims_modificationTool.name());
         outConfig.set("GriefPrevention.Claims.Expiration.ChestClaimDays", this.config_claims_chestClaimExpirationDays);
-        outConfig.set("GriefPrevention.Claims.Expiration.UnusedClaimDays", this.config_claims_unusedClaimExpirationDays);
         outConfig.set("GriefPrevention.Claims.Expiration.AllClaims.DaysInactive", this.config_claims_expirationDays);
         outConfig.set("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasTotalClaimBlocks", this.config_claims_expirationExemptionTotalBlocks);
         outConfig.set("GriefPrevention.Claims.Expiration.AllClaims.ExceptWhenOwnerHasBonusClaimBlocks", this.config_claims_expirationExemptionBonusBlocks);
-        outConfig.set("GriefPrevention.Claims.Expiration.AutomaticNatureRestoration.SurvivalWorlds", this.config_claims_survivalAutoNatureRestoration);
         outConfig.set("GriefPrevention.Claims.AllowTrappedInAdminClaims", this.config_claims_allowTrappedInAdminClaims);
         outConfig.set("GriefPrevention.Claims.MaximumNumberOfClaimsPerPlayer", this.config_claims_maxClaimsPerPlayer);
         outConfig.set("GriefPrevention.Claims.VillagerTradingRequiresPermission", this.config_claims_villagerTradingRequiresTrust);
@@ -820,10 +817,6 @@ public class GriefPrevention extends JavaPlugin
         outConfig.set("GriefPrevention.HardModeZombiesBreakDoors", this.config_zombiesBreakDoors);
         outConfig.set("GriefPrevention.MobProjectilesChangeBlocks", this.config_mobProjectilesChangeBlocks);
 
-        outConfig.set("GriefPrevention.Database.URL", this.databaseUrl);
-        outConfig.set("GriefPrevention.Database.UserName", this.databaseUserName);
-        outConfig.set("GriefPrevention.Database.Password", this.databasePassword);
-
         outConfig.set("GriefPrevention.UseBanCommand", this.config_ban_useCommand);
         outConfig.set("GriefPrevention.BanCommandPattern", this.config_ban_commandFormat);
 
@@ -882,6 +875,59 @@ public class GriefPrevention extends JavaPlugin
         for (String command : commands)
         {
             this.config_pvp_blockedCommands.add(command.trim().toLowerCase());
+        }
+    }
+
+    private void loadDatabaseSettings(@NotNull FileConfiguration legacyConfig)
+    {
+        File databasePropsFile = new File(DataStore.dataLayerFolderPath, "database.properties");
+        Properties databaseProps = new Properties();
+
+        // If properties file exists, use it - old config has already been migrated.
+        if (databasePropsFile.exists() && databasePropsFile.isFile())
+        {
+            try (FileReader reader = new FileReader(databasePropsFile, StandardCharsets.UTF_8))
+            {
+                // Load properties from file.
+                databaseProps.load(reader);
+
+                // Set values from loaded properties.
+                databaseUrl = databaseProps.getProperty("jdbcUrl", "");
+                databaseUserName = databaseProps.getProperty("username", "");
+                databasePassword = databaseProps.getProperty("password", "");
+            }
+            catch (IOException e)
+            {
+                getLogger().log(Level.SEVERE, "Unable to read database.properties", e);
+            }
+
+            return;
+        }
+
+        // Otherwise, database details may not have been migrated from legacy configuration.
+        // Try to load them.
+        databaseUrl = legacyConfig.getString("GriefPrevention.Database.URL", "");
+        databaseUserName = legacyConfig.getString("GriefPrevention.Database.UserName", "");
+        databasePassword = legacyConfig.getString("GriefPrevention.Database.Password", "");
+
+        // If not in use already, database settings are "secret" to discourage adoption until datastore is rewritten.
+        if (databaseUrl.isBlank()) {
+            return;
+        }
+
+        // Set properties to loaded values.
+        databaseProps.setProperty("jdbcUrl", databaseUrl);
+        databaseProps.setProperty("username", databaseUserName);
+        databaseProps.setProperty("password", databasePassword);
+
+        // Write properties file for future usage.
+        try (FileWriter writer = new FileWriter(databasePropsFile, StandardCharsets.UTF_8))
+        {
+            databaseProps.store(writer, null);
+        }
+        catch (IOException e)
+        {
+            getLogger().log(Level.SEVERE, "Unable to write database.properties", e);
         }
     }
 
@@ -1137,50 +1183,6 @@ public class GriefPrevention extends JavaPlugin
             //revert any current visualization
             playerData.setVisibleBoundaries(null);
 
-            return true;
-        }
-
-        //restore nature
-        else if (cmd.getName().equalsIgnoreCase("restorenature") && player != null)
-        {
-            //change shovel mode
-            PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-            playerData.shovelMode = ShovelMode.RestoreNature;
-            GriefPrevention.sendMessage(player, TextMode.Instr, Messages.RestoreNatureActivate);
-            return true;
-        }
-
-        //restore nature aggressive mode
-        else if (cmd.getName().equalsIgnoreCase("restorenatureaggressive") && player != null)
-        {
-            //change shovel mode
-            PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-            playerData.shovelMode = ShovelMode.RestoreNatureAggressive;
-            GriefPrevention.sendMessage(player, TextMode.Warn, Messages.RestoreNatureAggressiveActivate);
-            return true;
-        }
-
-        //restore nature fill mode
-        else if (cmd.getName().equalsIgnoreCase("restorenaturefill") && player != null)
-        {
-            //change shovel mode
-            PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-            playerData.shovelMode = ShovelMode.RestoreNatureFill;
-
-            //set radius based on arguments
-            playerData.fillRadius = 2;
-            if (args.length > 0)
-            {
-                try
-                {
-                    playerData.fillRadius = Integer.parseInt(args[0]);
-                }
-                catch (Exception exception) { }
-            }
-
-            if (playerData.fillRadius < 0) playerData.fillRadius = 2;
-
-            GriefPrevention.sendMessage(player, TextMode.Success, Messages.FillModeActive, String.valueOf(playerData.fillRadius));
             return true;
         }
 
@@ -1638,14 +1640,7 @@ public class GriefPrevention extends JavaPlugin
                     }
                     else
                     {
-                        claim.removeSurfaceFluids(null);
                         this.dataStore.deleteClaim(claim, true, true);
-
-                        //if in a creative mode world, /restorenature the claim
-                        if (GriefPrevention.instance.creativeRulesApply(claim.getLesserBoundaryCorner()) || GriefPrevention.instance.config_claims_survivalAutoNatureRestoration)
-                        {
-                            GriefPrevention.instance.restoreClaim(claim, 0);
-                        }
 
                         GriefPrevention.sendMessage(player, TextMode.Success, Messages.DeleteSuccess);
                         GriefPrevention.AddLogEntry(player.getName() + " deleted " + claim.getOwnerName() + "'s claim at " + GriefPrevention.getfriendlyLocationString(claim.getLesserBoundaryCorner()), CustomLogEntryTypes.AdminActivity);
@@ -2160,54 +2155,6 @@ public class GriefPrevention extends JavaPlugin
             return true;
         }
 
-        //givepet
-        else if (cmd.getName().equalsIgnoreCase("givepet") && player != null)
-        {
-            //requires one parameter
-            if (args.length < 1) return false;
-
-            PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-
-            //special case: cancellation
-            if (args[0].equalsIgnoreCase("cancel"))
-            {
-                playerData.petGiveawayRecipient = null;
-                GriefPrevention.sendMessage(player, TextMode.Success, Messages.PetTransferCancellation);
-                return true;
-            }
-
-            //find the specified player
-            OfflinePlayer targetPlayer = this.resolvePlayerByName(args[0]);
-            if (targetPlayer == null
-                    || !targetPlayer.isOnline() && !targetPlayer.hasPlayedBefore()
-                    || targetPlayer.getName() == null)
-            {
-                GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
-                return true;
-            }
-
-            //remember the player's ID for later pet transfer
-            playerData.petGiveawayRecipient = targetPlayer;
-
-            //send instructions
-            GriefPrevention.sendMessage(player, TextMode.Instr, Messages.ReadyToTransferPet);
-
-            return true;
-        }
-
-        //gpblockinfo
-        else if (cmd.getName().equalsIgnoreCase("gpblockinfo") && player != null)
-        {
-            ItemStack inHand = player.getInventory().getItemInMainHand();
-            player.sendMessage("In Hand: " + inHand.getType().name());
-
-            Block inWorld = player.getTargetBlockExact(300, FluidCollisionMode.ALWAYS);
-            if (inWorld == null) inWorld = player.getEyeLocation().getBlock();
-            player.sendMessage("In World: " + inWorld.getType().name());
-
-            return true;
-        }
-
         //ignoreplayer
         else if (cmd.getName().equalsIgnoreCase("ignoreplayer") && player != null)
         {
@@ -2414,16 +2361,7 @@ public class GriefPrevention extends JavaPlugin
         else
         {
             //delete it
-            claim.removeSurfaceFluids(null);
             this.dataStore.deleteClaim(claim, true, false);
-
-            //if in a creative mode world, restore the claim area
-            if (GriefPrevention.instance.creativeRulesApply(claim.getLesserBoundaryCorner()))
-            {
-                GriefPrevention.AddLogEntry(player.getName() + " abandoned a claim @ " + GriefPrevention.getfriendlyLocationString(claim.getLesserBoundaryCorner()));
-                GriefPrevention.sendMessage(player, TextMode.Warn, Messages.UnclaimCleanupWarning);
-                GriefPrevention.instance.restoreClaim(claim, 20L * 60 * 2);
-            }
 
             //adjust claim blocks when abandoning a top level claim
             if (this.config_claims_abandonReturnRatio != 1.0D && claim.parent == null && claim.ownerID.equals(playerData.playerID))
@@ -2962,173 +2900,72 @@ public class GriefPrevention extends JavaPlugin
         return this.config_claims_worldModes.get(location.getWorld()) == ClaimsMode.Creative;
     }
 
-    public String allowBuild(Player player, Location location)
+    /**
+     * @deprecated use {@link ProtectionHelper#checkPermission(Player, Location, ClaimPermission, org.bukkit.event.Event)}
+     */
+    @Deprecated(forRemoval = true, since = "17.0.0")
+    public @Nullable String allowBuild(Player player, Location location)
     {
-        // TODO check all derivatives and rework API
         return this.allowBuild(player, location, location.getBlock().getType());
     }
 
-    public String allowBuild(Player player, Location location, Material material)
+    /**
+     * @deprecated use {@link ProtectionHelper#checkPermission(Player, Location, ClaimPermission, org.bukkit.event.Event)}
+     */
+    @Deprecated(forRemoval = true, since = "17.0.0")
+    public @Nullable String allowBuild(Player player, Location location, Material material)
     {
         if (!GriefPrevention.instance.claimsEnabledForWorld(location.getWorld())) return null;
 
-        PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-        Claim claim = this.dataStore.getClaimAt(location, false, playerData.lastClaim);
-
-        //exception: administrators in ignore claims mode
-        if (playerData.ignoreClaims) return null;
-
-        //wilderness rules
-        if (claim == null)
+        ItemStack placed;
+        if (material.isItem())
         {
-            //no building in the wilderness in creative mode
-            if (this.creativeRulesApply(location) || this.config_claims_worldModes.get(location.getWorld()) == ClaimsMode.SurvivalRequiringClaims)
-            {
-                //exception: when chest claims are enabled, players who have zero land claims and are placing a chest
-                if (material != Material.CHEST || playerData.getClaims().size() > 0 || GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius == -1)
-                {
-                    String reason = this.dataStore.getMessage(Messages.NoBuildOutsideClaims);
-                    if (player.hasPermission("griefprevention.ignoreclaims"))
-                        reason += "  " + this.dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
-                    reason += "  " + this.dataStore.getMessage(Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-                    return reason;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-
-            //but it's fine in survival mode
-            else
-            {
-                return null;
-            }
+            placed = new ItemStack(material);
         }
-
-        //if not in the wilderness, then apply claim rules (permissions, etc)
         else
         {
-            //cache the claim for later reference
-            playerData.lastClaim = claim;
-            Block block = location.getBlock();
-
-            Supplier<String> supplier = claim.checkPermission(player, ClaimPermission.Build, new BlockPlaceEvent(block, block.getState(), block, new ItemStack(material), player, true, EquipmentSlot.HAND));
-
-            if (supplier == null) return null;
-
-            return supplier.get();
+            var blockType = material.asBlockType();
+            if (blockType != null && blockType.hasItemType())
+            {
+                placed = blockType.getItemType().createItemStack();
+            }
+            else
+            {
+                placed = new ItemStack(Material.DIRT);
+            }
         }
+
+        Block block = location.getBlock();
+        Supplier<String> result = ProtectionHelper.checkPermission(player, location, ClaimPermission.Build, new BlockPlaceEvent(block, block.getState(), block, placed, player, true, EquipmentSlot.HAND));
+        return result == null ? null : result.get();
     }
 
-    public String allowBreak(Player player, Block block, Location location)
+    /**
+     * @deprecated use {@link ProtectionHelper#checkPermission(Player, Location, ClaimPermission, org.bukkit.event.Event)}
+     */
+    @Deprecated(forRemoval = true, since = "17.0.0")
+    public @Nullable String allowBreak(Player player, Block block, Location location)
     {
         return this.allowBreak(player, block, location, new BlockBreakEvent(block, player));
     }
 
-    public String allowBreak(Player player, Material material, Location location, BlockBreakEvent breakEvent)
+    /**
+     * @deprecated use {@link ProtectionHelper#checkPermission(Player, Location, ClaimPermission, org.bukkit.event.Event)}
+     */
+    @Deprecated(forRemoval = true, since = "17.0.0")
+    public @Nullable String allowBreak(Player player, Material material, Location location, BlockBreakEvent breakEvent)
     {
         return this.allowBreak(player, location.getBlock(), location, breakEvent);
     }
 
-    public String allowBreak(Player player, Block block, Location location, BlockBreakEvent breakEvent)
+    /**
+     * @deprecated use {@link ProtectionHelper#checkPermission(Player, Location, ClaimPermission, org.bukkit.event.Event)}
+     */
+    @Deprecated(forRemoval = true, since = "17.0.0")
+    public @Nullable String allowBreak(Player player, Block block, Location location, BlockBreakEvent breakEvent)
     {
-        if (!GriefPrevention.instance.claimsEnabledForWorld(location.getWorld())) return null;
-
-        PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-        Claim claim = this.dataStore.getClaimAt(location, false, playerData.lastClaim);
-
-        //exception: administrators in ignore claims mode
-        if (playerData.ignoreClaims) return null;
-
-        //wilderness rules
-        if (claim == null)
-        {
-            //no building in the wilderness in creative mode
-            if (this.creativeRulesApply(location) || this.config_claims_worldModes.get(location.getWorld()) == ClaimsMode.SurvivalRequiringClaims)
-            {
-                String reason = this.dataStore.getMessage(Messages.NoBuildOutsideClaims);
-                if (player.hasPermission("griefprevention.ignoreclaims"))
-                    reason += "  " + this.dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
-                reason += "  " + this.dataStore.getMessage(Messages.CreativeBasicsVideo2, DataStore.CREATIVE_VIDEO_URL);
-                return reason;
-            }
-
-            //but it's fine in survival mode
-            else
-            {
-                return null;
-            }
-        }
-        else
-        {
-            //cache the claim for later reference
-            playerData.lastClaim = claim;
-
-            //if not in the wilderness, then apply claim rules (permissions, etc)
-            Supplier<String> cancel = claim.checkPermission(player, ClaimPermission.Build, breakEvent);
-            if (cancel != null && breakEvent != null)
-            {
-                PreventBlockBreakEvent preventionEvent = new PreventBlockBreakEvent(breakEvent);
-                Bukkit.getPluginManager().callEvent(preventionEvent);
-                if (preventionEvent.isCancelled())
-                {
-                    cancel = null;
-                }
-            }
-
-            if (cancel == null) return null;
-
-            return cancel.get();
-        }
-    }
-
-    //restores nature in multiple chunks, as described by a claim instance
-    //this restores all chunks which have ANY number of claim blocks from this claim in them
-    //if the claim is still active (in the data store), then the claimed blocks will not be changed (only the area bordering the claim)
-    public void restoreClaim(Claim claim, long delayInTicks)
-    {
-        //admin claims aren't automatically cleaned up when deleted or abandoned
-        if (claim.isAdminClaim()) return;
-
-        //it's too expensive to do this for huge claims
-        if (claim.getArea() > 10000 || claim.getWidth() > 250 || claim.getHeight() > 250) return;
-
-        ArrayList<Chunk> chunks = claim.getChunks();
-        for (Chunk chunk : chunks)
-        {
-            this.restoreChunk(chunk, this.getSeaLevel(chunk.getWorld()) - 15, false, delayInTicks, null);
-        }
-    }
-
-
-    public void restoreChunk(Chunk chunk, int miny, boolean aggressiveMode, long delayInTicks, Player playerReceivingVisualization)
-    {
-        //build a snapshot of this chunk, including 1 block boundary outside of the chunk all the way around
-        int maxHeight = chunk.getWorld().getMaxHeight();
-        BlockSnapshot[][][] snapshots = new BlockSnapshot[18][maxHeight][18];
-        Block startBlock = chunk.getBlock(0, 0, 0);
-        Location startLocation = new Location(chunk.getWorld(), startBlock.getX() - 1, 0, startBlock.getZ() - 1);
-        for (int x = 0; x < snapshots.length; x++)
-        {
-            for (int z = 0; z < snapshots[0][0].length; z++)
-            {
-                for (int y = 0; y < snapshots[0].length; y++)
-                {
-                    Block block = chunk.getWorld().getBlockAt(startLocation.getBlockX() + x, startLocation.getBlockY() + y, startLocation.getBlockZ() + z);
-                    snapshots[x][y][z] = new BlockSnapshot(block.getLocation(), block.getType(), block.getBlockData());
-                }
-            }
-        }
-
-        //create task to process those data in another thread
-        Location lesserBoundaryCorner = chunk.getBlock(0, 0, 0).getLocation();
-        Location greaterBoundaryCorner = chunk.getBlock(15, 0, 15).getLocation();
-
-        //create task
-        //when done processing, this task will create a main thread task to actually update the world with processing results
-        RestoreNatureProcessingTask task = new RestoreNatureProcessingTask(snapshots, miny, chunk.getWorld().getEnvironment(), lesserBoundaryCorner.getBlock().getBiome(), lesserBoundaryCorner, greaterBoundaryCorner, this.getSeaLevel(chunk.getWorld()), aggressiveMode, GriefPrevention.instance.creativeRulesApply(lesserBoundaryCorner), playerReceivingVisualization);
-        scheduler.getImpl().runAtLocationLater(lesserBoundaryCorner, task, delayInTicks * 50L, TimeUnit.MILLISECONDS);
+        Supplier<String> result = ProtectionHelper.checkPermission(player, location, ClaimPermission.Build, breakEvent);
+        return result == null ? null : result.get();
     }
 
     private Set<Material> parseMaterialListFromConfig(List<String> stringsToParse)
@@ -3234,8 +3071,8 @@ public class GriefPrevention extends JavaPlugin
         }
         else
         {
-            BanList<?> bans = Bukkit.getServer().getBanList(Type.NAME);
-            bans.addBan(player.getName(), reason, (Date) null, source);
+            BanList<PlayerProfile> bans = Bukkit.getServer().getBanList(Type.PROFILE);
+            bans.addBan(player.getPlayerProfile(), reason, (Date) null, source);
 
             //kick
             if (player.isOnline())
