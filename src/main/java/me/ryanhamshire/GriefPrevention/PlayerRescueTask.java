@@ -18,6 +18,7 @@
 
 package me.ryanhamshire.GriefPrevention;
 
+import io.papermc.lib.PaperLib;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -66,7 +67,7 @@ class PlayerRescueTask implements Runnable
         }
         else
         {
-            player.teleportAsync(this.destination);
+            PaperLib.teleportAsync(player, this.destination);
         }
 
         //log entry, in case admins want to investigate the "trap"

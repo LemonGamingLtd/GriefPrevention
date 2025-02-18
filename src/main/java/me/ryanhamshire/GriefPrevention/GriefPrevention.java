@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.griefprevention.commands.ClaimCommand;
 import com.griefprevention.metrics.MetricsHandler;
 import com.griefprevention.protection.ProtectionHelper;
+import io.papermc.lib.PaperLib;
 import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.FoliaLib;
 import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
 import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
@@ -2818,7 +2819,7 @@ public class GriefPrevention extends JavaPlugin
                 GuaranteeChunkLoaded(candidateLocation);
                 Block highestBlock = candidateLocation.getWorld().getHighestBlockAt(candidateLocation.getBlockX(), candidateLocation.getBlockZ());
                 Location destination = new Location(highestBlock.getWorld(), highestBlock.getX(), highestBlock.getY() + 2, highestBlock.getZ());
-                player.teleportAsync(destination);
+                PaperLib.teleportAsync(player, destination);
                 return destination;
             }
         }

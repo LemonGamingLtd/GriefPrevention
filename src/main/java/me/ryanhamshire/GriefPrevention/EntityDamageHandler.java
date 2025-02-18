@@ -1,5 +1,6 @@
 package me.ryanhamshire.GriefPrevention;
 
+import io.papermc.lib.PaperLib;
 import me.ryanhamshire.GriefPrevention.events.PreventPvPEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -780,7 +781,7 @@ public class EntityDamageHandler implements Listener
             if (projectile.getType() == EntityType.TRIDENT)
             {
                 // Instead of removing a trident, teleport it to the entity's foot location and remove velocity.
-                projectile.teleportAsync(entity.getLocation());
+                PaperLib.teleportAsync(projectile, entity.getLocation());
                 projectile.setVelocity(new Vector());
             }
             // Otherwise remove the projectile.

@@ -23,6 +23,7 @@ import com.griefprevention.util.command.MonitorableCommand;
 import com.griefprevention.util.command.MonitoredCommands;
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
+import io.papermc.lib.PaperLib;
 import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
 import me.ryanhamshire.GriefPrevention.events.ClaimInspectionEvent;
 import me.ryanhamshire.GriefPrevention.util.BoundingBox;
@@ -778,7 +779,7 @@ class PlayerEventHandler implements Listener
                 if (player.getPortalCooldown() > 8 && player.hasMetadata("GP_PORTALRESCUE"))
                 {
                     GriefPrevention.AddLogEntry("Rescued " + player.getName() + " from a nether portal.\nTeleported from " + player.getLocation().toString() + " to " + ((Location) player.getMetadata("GP_PORTALRESCUE").get(0).value()).toString(), CustomLogEntryTypes.Debug);
-                    player.teleportAsync((Location) player.getMetadata("GP_PORTALRESCUE").get(0).value());
+                    PaperLib.teleportAsync(player, (Location) player.getMetadata("GP_PORTALRESCUE").get(0).value());
                     player.removeMetadata("GP_PORTALRESCUE", instance);
                 }
             }, 10L, TimeUnit.SECONDS);
@@ -1318,7 +1319,7 @@ class PlayerEventHandler implements Listener
             return;
         }
 
-        if (newItemStack == null || newItemStack.getType().isEmpty()) {
+        if (newItemStack == null || newItemStack.getType().isAir()) {
             PlayerData playerData = dataStore.getPlayerData(player.getUniqueId());
             if (playerData.lastShovelLocation == null) { // not in selection mode
                 return;
