@@ -2,7 +2,6 @@ commit-hash: ${git.commit.id.describe-short}
 git-repo: LemonGamingLtd/GriefPrevention
 name: GriefPrevention
 main: me.ryanhamshire.GriefPrevention.GriefPrevention
-depend: [LGCore]
 softdepend: [Multiverse-Core, My_Worlds, MystCraft, Transporter, RoyalCommands, MultiWorld, Denizen, CommandHelper]
 dev-url: https://dev.bukkit.org/projects/grief-prevention
 version: '${git.commit.id.describe}'

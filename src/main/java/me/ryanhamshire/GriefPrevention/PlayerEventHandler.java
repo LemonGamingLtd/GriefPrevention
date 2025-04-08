@@ -23,7 +23,7 @@ import com.griefprevention.util.command.MonitorableCommand;
 import com.griefprevention.util.command.MonitoredCommands;
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
-import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
 import me.ryanhamshire.GriefPrevention.events.ClaimInspectionEvent;
 import me.ryanhamshire.GriefPrevention.util.BoundingBox;
 import org.bukkit.BanList;

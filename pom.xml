@@ -50,6 +50,10 @@
             <id>placeholderapi</id>
             <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
         </repository>
+        <repository>
+            <id>jitpack</id>
+            <url>https://jitpack.io</url>
+        </repository>
     </repositories>
 
     <build>
@@ -67,7 +71,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.14.0</version>
                 <configuration>
                     <source>21</source>
                     <target>21</target>
@@ -91,7 +95,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>3.0.0-M1</version>
+                <version>3.0.1</version>
                 <configuration>
                     <tagNameFormat>@{project.version}</tagNameFormat>
                     <allowTimestampedSnapshots>true</allowTimestampedSnapshots>
@@ -100,7 +104,19 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.6.0</version>
+                <configuration>
+                    <relocations>
+                        <relocation>
+                            <pattern>com.tcoded.folialib</pattern>
+                            <shadedPattern>me.ryanhamshire.GriefPrevention.libs.com.tcoded.folialib</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>io.papermc.lib</pattern>
+                            <shadedPattern>me.ryanhamshire.GriefPrevention.libs.io.papermc.lib</shadedPattern>
+                        </relocation>
+                    </relocations>
+                </configuration>
                 <executions>
                     <execution>
                         <id>shade</id>
@@ -195,18 +211,12 @@
             <version>1.0.2</version>
             <scope>compile</scope>
         </dependency>
-        <!-- LGCore -->
+        <!-- FoliaLib -->
         <dependency>
-            <groupId>ltd.lemongaming</groupId>
-            <artifactId>lg-core-spigot-plugin</artifactId>
-            <version>3.2.4</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>ltd.lemongaming</groupId>
-                    <artifactId>paper-config-library</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>com.github.technicallycoded</groupId>
+            <artifactId>FoliaLib</artifactId>
+            <version>0.4.4</version>
+            <scope>compile</scope>
         </dependency>
         <!-- Placeholder API -->
         <dependency>
@@ -216,16 +226,4 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>lemongaming-repo</id>
-            <url>https://repo.lemongaming.ltd/repository/maven-snapshots/</url>
-        </snapshotRepository>
-        <repository>
-            <id>lemongaming-repo</id>
-            <url>https://repo.lemongaming.ltd/repository/maven-releases/</url>
-        </repository>
-    </distributionManagement>
-
 </project>
