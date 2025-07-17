@@ -57,7 +57,7 @@ class CleanupUnusedClaimTask implements Runnable
             //if the owner has been gone at least a week, and if he has ONLY the new player claim, it will be removed
             Calendar sevenDaysAgo = Calendar.getInstance();
             sevenDaysAgo.add(Calendar.DATE, -GriefPrevention.instance.config_claims_chestClaimExpirationDays);
-            if (sevenDaysAgo.getTime().after(new Date(ownerInfo.getLastLogin())))
+            if (sevenDaysAgo.getTime().after(new Date(ownerInfo.getLastPlayed())))
             {
                 if (expireEventCanceled())
                     return;
@@ -73,7 +73,7 @@ class CleanupUnusedClaimTask implements Runnable
             Calendar earliestPermissibleLastLogin = Calendar.getInstance();
             earliestPermissibleLastLogin.add(Calendar.DATE, -GriefPrevention.instance.config_claims_expirationDays);
 
-            if (earliestPermissibleLastLogin.getTime().after(new Date(ownerInfo.getLastLogin())))
+            if (earliestPermissibleLastLogin.getTime().after(new Date(ownerInfo.getLastPlayed())))
             {
                 if (expireEventCanceled())
                     return;
@@ -84,7 +84,7 @@ class CleanupUnusedClaimTask implements Runnable
                 GriefPrevention.instance.dataStore.deleteClaimsForPlayer(claim.ownerID, true);
                 GriefPrevention.AddLogEntry(" All of " + claim.getOwnerName() + "'s claims have expired.", CustomLogEntryTypes.AdminActivity);
                 GriefPrevention.AddLogEntry("earliestPermissibleLastLogin#getTime: " + earliestPermissibleLastLogin.getTime(), CustomLogEntryTypes.Debug, true);
-                GriefPrevention.AddLogEntry("ownerInfo#getLastPlayed: " + ownerInfo.getLastLogin(), CustomLogEntryTypes.Debug, true);
+                GriefPrevention.AddLogEntry("ownerInfo#getLastPlayed: " + ownerInfo.getLastPlayed(), CustomLogEntryTypes.Debug, true);
             }
         }
     }
