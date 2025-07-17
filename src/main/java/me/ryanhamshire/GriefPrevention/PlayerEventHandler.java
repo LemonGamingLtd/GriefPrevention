@@ -23,8 +23,7 @@ import com.griefprevention.util.command.MonitorableCommand;
 import com.griefprevention.util.command.MonitoredCommands;
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
-import io.papermc.lib.PaperLib;
-import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
 import me.ryanhamshire.GriefPrevention.events.ClaimInspectionEvent;
 import me.ryanhamshire.GriefPrevention.util.BoundingBox;
 import org.bukkit.BanList;
@@ -779,7 +778,7 @@ class PlayerEventHandler implements Listener
                 if (player.getPortalCooldown() > 8 && player.hasMetadata("GP_PORTALRESCUE"))
                 {
                     GriefPrevention.AddLogEntry("Rescued " + player.getName() + " from a nether portal.\nTeleported from " + player.getLocation().toString() + " to " + ((Location) player.getMetadata("GP_PORTALRESCUE").get(0).value()).toString(), CustomLogEntryTypes.Debug);
-                    PaperLib.teleportAsync(player, (Location) player.getMetadata("GP_PORTALRESCUE").get(0).value());
+                    player.teleportAsync((Location) player.getMetadata("GP_PORTALRESCUE").get(0).value());
                     player.removeMetadata("GP_PORTALRESCUE", instance);
                 }
             }, 10L, TimeUnit.SECONDS);
@@ -1573,7 +1572,7 @@ class PlayerEventHandler implements Listener
                                 clickedBlockType == Material.LOOM ||
                                 clickedBlockType == Material.PUMPKIN ||
                                 clickedBlockType == Material.RESPAWN_ANCHOR ||
-                                clickedBlockType == Material.ROOTED_DIRT ||
+                                (clickedBlockType == Material.ROOTED_DIRT && Tag.ITEMS_HOES.isTagged(event.getMaterial())) ||
                                 clickedBlockType == Material.STONECUTTER ||
                                 clickedBlockType == Material.SWEET_BERRY_BUSH ||
                                 clickedBlockType == Material.DECORATED_POT

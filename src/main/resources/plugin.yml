@@ -2,7 +2,6 @@ commit-hash: ${git.commit.id.describe-short}
 git-repo: LemonGamingLtd/GriefPrevention
 name: GriefPrevention
 main: me.ryanhamshire.GriefPrevention.GriefPrevention
-depend: [LGCore]
 softdepend: [Multiverse-Core, My_Worlds, MystCraft, Transporter, RoyalCommands, MultiWorld, Denizen, CommandHelper]
 dev-url: https://dev.bukkit.org/projects/grief-prevention
 version: '${git.commit.id.describe}'
@@ -124,7 +123,7 @@ commands:
       permission: griefprevention.ignoreclaims
       aliases: ic
     deletealladminclaims:
-      description: Deletes all administrative claims.
+      description: Deletes all administrative claims. Only usable at the server console.
       usage: /<command>
       permission: griefprevention.adminclaims
     adminclaimslist:
@@ -215,6 +214,9 @@ permissions:
             griefprevention.deleteclaimsinworld: true
             griefprevention.unlockothersdrops: true
             griefprevention.seeclaimsize: true
+    griefprevention.extendclaim.toolbypass:
+        description: Allows a player to extend a claim without a modification tool.
+        default: false
     griefprevention.unlockdrops:
         description: Grants permission to use /unlockdrops.
         default: true

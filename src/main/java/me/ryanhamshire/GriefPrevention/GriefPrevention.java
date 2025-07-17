@@ -23,9 +23,8 @@ import com.google.common.cache.CacheBuilder;
 import com.griefprevention.commands.ClaimCommand;
 import com.griefprevention.metrics.MetricsHandler;
 import com.griefprevention.protection.ProtectionHelper;
-import io.papermc.lib.PaperLib;
-import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.FoliaLib;
-import ltd.lemongaming.lgcore.libs.com.tcoded.folialib.wrapper.WrappedTask;
+import com.tcoded.folialib.FoliaLib;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
 import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
 import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
@@ -1000,9 +999,10 @@ public class GriefPrevention extends JavaPlugin
                 return false;
             }
 
-            //requires claim modification tool in hand
-            if (player.getGameMode() != GameMode.CREATIVE && player.getItemInHand().getType() != GriefPrevention.instance.config_claims_modificationTool)
-            {
+            //requires claim modification tool in hand, except if player is in creative or has the extendclaim permission.
+            if (player.getGameMode() != GameMode.CREATIVE
+                    && player.getItemInHand().getType() != GriefPrevention.instance.config_claims_modificationTool
+                    && !player.hasPermission("griefprevention.extendclaim.toolbypass")) {
                 GriefPrevention.sendMessage(player, TextMode.Err, Messages.MustHoldModificationToolForThat);
                 return true;
             }
@@ -1904,26 +1904,19 @@ public class GriefPrevention extends JavaPlugin
         }
 
         //deletealladminclaims
-        else if (player != null && cmd.getName().equalsIgnoreCase("deletealladminclaims"))
+        else if (cmd.getName().equalsIgnoreCase("deletealladminclaims"))
         {
-            if (!player.hasPermission("griefprevention.deleteclaims"))
+            //must be executed at the console
+            if (player != null)
             {
-                GriefPrevention.sendMessage(player, TextMode.Err, Messages.NoDeletePermission);
+                GriefPrevention.sendMessage(player, TextMode.Err, Messages.ConsoleOnlyCommand);
                 return true;
             }
 
             //delete all admin claims
             this.dataStore.deleteClaimsForPlayer(null, true);  //null for owner id indicates an administrative claim
 
-            GriefPrevention.sendMessage(player, TextMode.Success, Messages.AllAdminDeleted);
-            if (player != null)
-            {
-                GriefPrevention.AddLogEntry(player.getName() + " deleted all administrative claims.", CustomLogEntryTypes.AdminActivity);
-
-                //revert any current visualization
-                this.dataStore.getPlayerData(player.getUniqueId()).setVisibleBoundaries(null);
-            }
-
+            GriefPrevention.AddLogEntry("Deleted all administrative claims.", CustomLogEntryTypes.AdminActivity);
             return true;
         }
 
@@ -2819,7 +2812,7 @@ public class GriefPrevention extends JavaPlugin
                 GuaranteeChunkLoaded(candidateLocation);
                 Block highestBlock = candidateLocation.getWorld().getHighestBlockAt(candidateLocation.getBlockX(), candidateLocation.getBlockZ());
                 Location destination = new Location(highestBlock.getWorld(), highestBlock.getX(), highestBlock.getY() + 2, highestBlock.getZ());
-                PaperLib.teleportAsync(player, destination);
+                player.teleportAsync(destination);
                 return destination;
             }
         }
