@@ -68,10 +68,9 @@ class DeliverClaimBlocksTask implements Runnable
         PlayerData playerData = dataStore.getPlayerData(player.getUniqueId());
 
         // check if player is idle (considered idle if player's facing direction has not changed)
-        boolean isIdle = false;
-
         // Note: Disabled AFK checking so all online players get blocks - why isn't there a config option for this smh
-        //isIdle = !(playerData.lastAfkCheckLocation == null || playerData.lastAfkCheckLocation.getDirection().equals(player.getLocation().getDirection()));
+        // boolean isIdle = playerData.lastAfkCheckLocation != null && playerData.lastAfkCheckLocation.getDirection().equals(player.getLocation().getDirection());
+        boolean isIdle = false;
 
         //remember current location for next time
         playerData.lastAfkCheckLocation = player.getLocation();
