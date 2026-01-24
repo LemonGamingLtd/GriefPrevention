@@ -1590,6 +1590,12 @@ class PlayerEventHandler implements Listener
             {
                 playerData.lastClaim = claim;
 
+                if (!hasLineOfSight(player, clickedBlock))
+                {
+                    event.setCancelled(true);
+                    return;
+                }
+
                 Supplier<String> noContainersReason = claim.checkPermission(player, ClaimPermission.Inventory, event);
                 if (noContainersReason != null)
                 {
@@ -2274,5 +2280,50 @@ class PlayerEventHandler implements Listener
         }
 
         return result;
+    }
+
+    /**
+     * Checks if a player has clear line of sight to the target block.
+     * This prevents exploits where players access containers through blocks
+     * that appear broken client-side but still exist server-side.
+     *
+     * @param player The player to check line of sight from
+     * @param targetBlock The block the player is trying to interact with
+     * @return true if the player can see the target block, false if blocked
+     */
+    private static boolean hasLineOfSight(Player player, Block targetBlock)
+    {
+        Location eye = player.getEyeLocation();
+        Material eyeMaterial = eye.getBlock().getType();
+        boolean passThroughWater = (eyeMaterial == Material.WATER);
+
+        double distance = eye.distance(targetBlock.getLocation().add(0.5, 0.5, 0.5));
+        int maxDistance = (int) Math.ceil(distance) + 1;
+
+        try
+        {
+            BlockIterator iterator = new BlockIterator(player.getLocation(), player.getEyeHeight(), maxDistance);
+            while (iterator.hasNext())
+            {
+                Block block = iterator.next();
+
+                if (block.equals(targetBlock))
+                {
+                    return true;
+                }
+
+                Material type = block.getType();
+                if (!Tag.REPLACEABLE.isTagged(type) && (!passThroughWater || type != Material.WATER))
+                {
+                    return false;
+                }
+            }
+        }
+        catch (IllegalStateException ignored)
+        {
+            return false;
+        }
+
+        return false;
     }
 }
