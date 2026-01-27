@@ -381,6 +381,13 @@ public class EntityEventHandler implements Listener
         // If there aren't any affected blocks, there's nothing to do. Vanilla mob griefing rule causes this.
         if (explodeEvent.blockList().isEmpty()) return;
 
+        Entity entity = explodeEvent.getEntity();
+        if (entity instanceof Projectile projectile && entity.getType().name().contains("WIND_CHARGE"))
+        {
+            handleWindChargeExplosion(projectile, explodeEvent.blockList());
+            return;
+        }
+
         // Explosion causes interactable blocks (levers, buttons, etc.) to change state.
         if (explodeEvent.getExplosionResult() == ExplosionResult.TRIGGER_BLOCK)
         {
@@ -391,6 +398,45 @@ public class EntityEventHandler implements Listener
         {
             handleExplosion(explodeEvent.getLocation(), explodeEvent.getEntity(), explodeEvent.blockList());
         }
+    }
+
+    /**
+     * Handle wind charge explosions.
+     * This prevents griefing of spawners and other blocks with wind charges.
+     */
+    private void handleWindChargeExplosion(Projectile projectile, List<Block> blocks)
+    {
+        ProjectileSource source = projectile.getShooter();
+        Player player = source instanceof Player ? (Player) source : null;
+        PlayerData playerData = player != null ? dataStore.getPlayerData(player.getUniqueId()) : null;
+
+        List<Block> removed = new ArrayList<>();
+        Claim cachedClaim = playerData != null ? playerData.lastClaim : null;
+
+        for (Block block : blocks)
+        {
+            if (block.getType().isAir()) continue;
+
+            Claim claim = dataStore.getClaimAt(block.getLocation(), false, cachedClaim);
+            if (claim == null) continue;
+
+            cachedClaim = claim;
+
+            if (player == null)
+            {
+                if (!isBlockSourceInClaim(source, claim))
+                    removed.add(block);
+                continue;
+            }
+
+            if (claim.checkPermission(player, ClaimPermission.Build, null) != null)
+                removed.add(block);
+        }
+
+        if (playerData != null && cachedClaim != null)
+            playerData.lastClaim = cachedClaim;
+
+        blocks.removeAll(removed);
     }
 
     //when a block explodes...
@@ -454,8 +500,7 @@ public class EntityEventHandler implements Listener
                 continue;
             }
 
-            // If the player is not allowed to interact with blocks, prevent interaction.
-            if (claim.checkPermission(player, ClaimPermission.Access, event) != null)
+            if (claim.checkPermission(player, ClaimPermission.Build, event) != null)
                 removed.add(block);
         }
 
