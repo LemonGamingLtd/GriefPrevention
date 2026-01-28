@@ -1591,7 +1591,9 @@ class PlayerEventHandler implements Listener
                 playerData.lastClaim = claim;
 
                 // Check line of sight to prevent through-wall container access exploits
-                if (instance.config_claims_containerLineOfSightRequired && !hasLineOfSight(player, clickedBlock))
+                if (instance.config_claims_containerLineOfSightRequired
+                        && !claim.hasExplicitPermission(player, ClaimPermission.Build)
+                        && !hasLineOfSight(player, clickedBlock))
                 {
                     event.setCancelled(true);
                     return;
