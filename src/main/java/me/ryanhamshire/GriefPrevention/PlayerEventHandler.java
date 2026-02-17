@@ -40,6 +40,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Waterlogged;
+import org.bukkit.block.data.type.Slab;
 import org.bukkit.entity.AbstractHorse;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Creature;
@@ -2296,8 +2297,6 @@ class PlayerEventHandler implements Listener
      */
     private static boolean hasLineOfSight(Player player, Block targetBlock) {
         Location eye = player.getEyeLocation();
-        Material eyeMaterial = eye.getBlock().getType();
-        boolean passThroughWater = (eyeMaterial == Material.WATER);
 
         double distance = eye.distance(targetBlock.getLocation().add(0.5, 0.5, 0.5));
         int maxDistance = (int) Math.ceil(distance) + 1;
@@ -2311,13 +2310,43 @@ class PlayerEventHandler implements Listener
                     return true;
                 }
 
-                Material type = block.getType();
-                if (!Tag.REPLACEABLE.isTagged(type) && (!passThroughWater || type != Material.WATER)) {
+                if (isLineOfSightBlocking(block)) {
                     return false;
                 }
             }
         } catch (IllegalStateException ignored) {
             return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if a block should block line of sight for container access.
+     */
+    private static boolean isLineOfSightBlocking(Block block) {
+        Material type = block.getType();
+
+        // always block solid blocks
+        if (type.isOccluding()) {
+            return true;
+        }
+
+        // let's also say glass blocks line of sight
+        if (type.name().contains("GLASS")) {
+            return true;
+        }
+
+        // no leaves
+        if (Tag.LEAVES.isTagged(type)) {
+            return true;
+        }
+
+        // full slabs/double slabs
+        if (block.getBlockData() instanceof Slab slab) {
+            if (slab.getType() == Slab.Type.DOUBLE) {
+                return true;
+            }
         }
 
         return false;
