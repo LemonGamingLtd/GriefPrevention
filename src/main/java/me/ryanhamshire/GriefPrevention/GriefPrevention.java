@@ -142,6 +142,7 @@ public class GriefPrevention extends JavaPlugin
     public int config_claims_blocksAccruedPerHour_default;            //how many additional blocks players get each hour of play (can be zero) without any special permissions
     public int config_claims_maxAccruedBlocks_default;                //the limit on accrued blocks (over time) for players without any special permissions.  doesn't limit purchased or admin-gifted blocks
     public int config_claims_minY;                                  //minimum Y coordinate claims can reach
+    public int config_claims_minimumSeparation;                     //minimum distance between separate players' claims
     public int config_claims_expirationDays;                        //how many days of inactivity before a player loses his claims
     public int config_claims_expirationExemptionTotalBlocks;        //total claim blocks amount which will exempt a player from claim expiration
     public int config_claims_expirationExemptionBonusBlocks;        //bonus claim blocks amount which will exempt a player from claim expiration
@@ -574,6 +575,7 @@ public class GriefPrevention extends JavaPlugin
         this.config_claims_claimsExtendIntoGroundDistance = Math.abs(config.getInt("GriefPrevention.Claims.ExtendIntoGroundDistance", 5));
         this.config_claims_minWidth = config.getInt("GriefPrevention.Claims.MinimumWidth", 5);
         this.config_claims_minArea = config.getInt("GriefPrevention.Claims.MinimumArea", 100);
+        this.config_claims_minimumSeparation = config.getInt("GriefPrevention.Claims.MinimumSeparationDistance", 20);
 
         this.config_claims_minY = config.getInt("GriefPrevention.Claims.MinimumY", Integer.MIN_VALUE);
         // Warn if MinimumY is set above sea level, as this is likely unintended
@@ -771,6 +773,7 @@ public class GriefPrevention extends JavaPlugin
         outConfig.set("GriefPrevention.Claims.ExtendIntoGroundDistance", this.config_claims_claimsExtendIntoGroundDistance);
         outConfig.set("GriefPrevention.Claims.MinimumWidth", this.config_claims_minWidth);
         outConfig.set("GriefPrevention.Claims.MinimumArea", this.config_claims_minArea);
+        outConfig.set("GriefPrevention.Claims.MinimumSeparationDistance", this.config_claims_minimumSeparation);
         outConfig.set("GriefPrevention.Claims.MinimumY", this.config_claims_minY);
         outConfig.set("GriefPrevention.Claims.InvestigationTool", this.config_claims_investigationTool.name());
         outConfig.set("GriefPrevention.Claims.ModificationTool", this.config_claims_modificationTool.name());
@@ -1355,12 +1358,23 @@ public class GriefPrevention extends JavaPlugin
             }
 
             player.sendMessage(permissions.toString());
+            permissions = new StringBuilder();
+            permissions.append(ChatColor.LIGHT_PURPLE).append('>');
+
+            if (!claim.proximityTrusted.isEmpty())
+            {
+                for (String proximityPlayer : claim.proximityTrusted)
+                    permissions.append(this.trustEntryToPlayerName(proximityPlayer)).append(' ');
+            }
+
+            player.sendMessage(permissions.toString());
 
             player.sendMessage(
                     ChatColor.GOLD + this.dataStore.getMessage(Messages.Manage) + " " +
                             ChatColor.YELLOW + this.dataStore.getMessage(Messages.Build) + " " +
                             ChatColor.GREEN + this.dataStore.getMessage(Messages.Containers) + " " +
-                            ChatColor.BLUE + this.dataStore.getMessage(Messages.Access));
+                            ChatColor.BLUE + this.dataStore.getMessage(Messages.Access) + " " +
+                            ChatColor.LIGHT_PURPLE + this.dataStore.getMessage(Messages.Proximity));
 
             if (claim.getSubclaimRestrictions())
             {
@@ -1582,6 +1596,28 @@ public class GriefPrevention extends JavaPlugin
             if (args.length != 1) return false;
 
             this.handleTrustCommand(player, ClaimPermission.Manage, args[0]);
+
+            return true;
+        }
+
+        //proximitytrust <player>
+        else if (cmd.getName().equalsIgnoreCase("proximitytrust") && player != null)
+        {
+            //requires exactly one parameter, the other player's name
+            if (args.length != 1) return false;
+
+            this.handleProximityTrustCommand(player, args[0], true);
+
+            return true;
+        }
+
+        //unproximitytrust <player>
+        else if (cmd.getName().equalsIgnoreCase("unproximitytrust") && player != null)
+        {
+            //requires exactly one parameter, the other player's name
+            if (args.length != 1) return false;
+
+            this.handleProximityTrustCommand(player, args[0], false);
 
             return true;
         }
@@ -2552,6 +2588,86 @@ public class GriefPrevention extends JavaPlugin
         }
 
         GriefPrevention.sendMessage(player, TextMode.Success, Messages.GrantPermissionConfirmation, recipientName, permissionDescription, location);
+    }
+
+    //helper method for proximity trust commands
+    private void handleProximityTrustCommand(Player player, String recipientName, boolean adding)
+    {
+        //determine which claim the player is standing in
+        Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
+
+        //validate player argument
+        OfflinePlayer otherPlayer = this.resolvePlayerByName(recipientName);
+        if (otherPlayer == null)
+        {
+            GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
+            return;
+        }
+
+        UUID recipientID = otherPlayer.getUniqueId();
+        recipientName = otherPlayer.getName();
+
+        //determine which claims should be modified
+        ArrayList<Claim> targetClaims = new ArrayList<>();
+        if (claim == null)
+        {
+            PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
+            targetClaims.addAll(playerData.getClaims());
+        }
+        else
+        {
+            //check permission here
+            if (claim.checkPermission(player, ClaimPermission.Manage, null) != null)
+            {
+                GriefPrevention.sendMessage(player, TextMode.Err, Messages.NoPermissionTrust, claim.getOwnerName());
+                return;
+            }
+
+            targetClaims.add(claim);
+        }
+
+        //if we didn't determine which claims to modify, tell the player to be specific
+        if (targetClaims.isEmpty())
+        {
+            GriefPrevention.sendMessage(player, TextMode.Err, Messages.GrantPermissionNoClaim);
+            return;
+        }
+
+        String identifierToAdd = recipientID.toString();
+
+        //apply changes
+        for (Claim currentClaim : targetClaims)
+        {
+            if (adding)
+            {
+                currentClaim.addProximityTrust(identifierToAdd);
+            }
+            else
+            {
+                currentClaim.removeProximityTrust(identifierToAdd);
+            }
+            this.dataStore.saveClaim(currentClaim);
+        }
+
+        //notify player
+        String location;
+        if (claim == null)
+        {
+            location = this.dataStore.getMessage(Messages.LocationAllClaims);
+        }
+        else
+        {
+            location = this.dataStore.getMessage(Messages.LocationCurrentClaim);
+        }
+
+        if (adding)
+        {
+            GriefPrevention.sendMessage(player, TextMode.Success, Messages.ProximityTrustGranted, recipientName, location);
+        }
+        else
+        {
+            GriefPrevention.sendMessage(player, TextMode.Success, Messages.ProximityTrustRevoked, recipientName, location);
+        }
     }
 
     //helper method to resolve a player by name

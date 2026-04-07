@@ -76,6 +76,9 @@ public class Claim
     //list of players who (beyond the claim owner) have permission to grant permissions in this claim
     public ArrayList<String> managers = new ArrayList<>();
 
+    //list of players who are allowed to create claims near this one (bypass minimum separation)
+    public ArrayList<String> proximityTrusted = new ArrayList<>();
+
     //permissions for this claim, see ClaimPermission class
     private HashMap<String, ClaimPermission> playerIDToClaimPermissionMap = new HashMap<>();
 
@@ -194,6 +197,7 @@ public class Claim
         this.id = claim.id;
         this.ownerID = claim.ownerID;
         this.managers = new ArrayList<>(claim.managers);
+        this.proximityTrusted = new ArrayList<>(claim.proximityTrusted);
         this.playerIDToClaimPermissionMap = new HashMap<>(claim.playerIDToClaimPermissionMap);
         this.inDataStore = false; //since it's a copy of a claim, not in datastore!
         this.areExplosivesAllowed = claim.areExplosivesAllowed;
@@ -637,6 +641,34 @@ public class Claim
         {
             child.clearPermissions();
         }
+    }
+
+    //adds a player to the proximity trust list (allows them to create claims near this one)
+    public void addProximityTrust(@NotNull String playerID)
+    {
+        playerID = playerID.toLowerCase();
+        if (!this.proximityTrusted.contains(playerID))
+        {
+            this.proximityTrusted.add(playerID);
+        }
+    }
+
+    //removes a player from the proximity trust list
+    public void removeProximityTrust(@NotNull String playerID)
+    {
+        this.proximityTrusted.remove(playerID.toLowerCase());
+    }
+
+    //checks if a player is proximity trusted (allowed to create claims nearby)
+    public boolean isProximityTrusted(@NotNull UUID playerID)
+    {
+        return this.proximityTrusted.contains(playerID.toString().toLowerCase());
+    }
+
+    //checks if a player is proximity trusted (allowed to create claims nearby)
+    public boolean isProximityTrusted(@NotNull String playerID)
+    {
+        return this.proximityTrusted.contains(playerID.toLowerCase());
     }
 
     //gets ALL permissions

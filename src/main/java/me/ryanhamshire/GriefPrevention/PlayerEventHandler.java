@@ -2183,7 +2183,15 @@ class PlayerEventHandler implements Listener
                 {
                     if (result.claim != null)
                     {
-                        GriefPrevention.sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlapShort);
+                        if (result.tooCloseToOtherClaim)
+                        {
+                            GriefPrevention.sendMessage(player, TextMode.Err, Messages.ClaimTooCloseToOtherClaim, 
+                                    String.valueOf(instance.config_claims_minimumSeparation), result.claim.getOwnerName());
+                        }
+                        else
+                        {
+                            GriefPrevention.sendMessage(player, TextMode.Err, Messages.CreateClaimFailOverlapShort);
+                        }
                         BoundaryVisualization.visualizeClaim(player, result.claim, VisualizationType.CONFLICT_ZONE, clickedBlock);
                     }
                     else

@@ -517,12 +517,23 @@ public class FlatFileDataStore extends DataStore
 
         List<String> managers = yaml.getStringList("Managers");
 
+        List<String> proximityTrusted = yaml.getStringList("ProximityTrusted");
+
         boolean inheritNothing = yaml.getBoolean("inheritNothing");
 
         out_parentID.add(yaml.getLong("Parent Claim ID", -1L));
 
         //instantiate
         claim = new Claim(lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builders, containers, accessors, managers, inheritNothing, claimID);
+        
+        //add proximity trusted players
+        for (String playerID : proximityTrusted)
+        {
+            if (playerID != null && !playerID.isEmpty())
+            {
+                claim.proximityTrusted.add(playerID.toLowerCase());
+            }
+        }
         claim.modifiedDate = new Date(lastModifiedDate);
         claim.id = claimID;
 
@@ -552,6 +563,7 @@ public class FlatFileDataStore extends DataStore
         yaml.set("Containers", containers);
         yaml.set("Accessors", accessors);
         yaml.set("Managers", managers);
+        yaml.set("ProximityTrusted", new ArrayList<>(claim.proximityTrusted));
 
         Long parentID = -1L;
         if (claim.parent != null)

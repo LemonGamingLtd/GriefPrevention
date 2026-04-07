@@ -965,6 +965,44 @@ public abstract class DataStore
             }
         }
 
+        //check minimum separation distance (only for top-level claims, not subdivisions)
+        int minimumSeparation = GriefPrevention.instance.config_claims_minimumSeparation;
+        if (minimumSeparation > 0 && parent == null && ownerID != null && creatingPlayer != null)
+        {
+            for (Claim otherClaim : this.claims)
+            {
+                //skip claims owned by the creating player
+                if (otherClaim.ownerID != null && otherClaim.ownerID.equals(ownerID))
+                {
+                    continue;
+                }
+
+                //skip admin claims (no owner)
+                if (otherClaim.ownerID == null)
+                {
+                    continue;
+                }
+
+                //skip if the creating player is proximity trusted by the other claim owner
+                if (otherClaim.isProximityTrusted(ownerID))
+                {
+                    continue;
+                }
+
+                //check if the new claim is too close to this existing claim
+                if (otherClaim.isNear(newClaim.getLesserBoundaryCorner(), minimumSeparation) ||
+                    otherClaim.isNear(newClaim.getGreaterBoundaryCorner(), minimumSeparation) ||
+                    newClaim.isNear(otherClaim.getLesserBoundaryCorner(), minimumSeparation) ||
+                    newClaim.isNear(otherClaim.getGreaterBoundaryCorner(), minimumSeparation))
+                {
+                    result.succeeded = false;
+                    result.claim = otherClaim;
+                    result.tooCloseToOtherClaim = true;
+                    return result;
+                }
+            }
+        }
+
         if (dryRun)
         {
             // since this is a dry run, just return the unsaved claim as is.

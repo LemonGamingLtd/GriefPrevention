@@ -401,7 +401,15 @@ public class BlockEventHandler implements Listener
                         else
                         {
                             //notify and explain to player
-                            GriefPrevention.sendMessage(player, TextMode.Err, Messages.AutomaticClaimOtherClaimTooClose);
+                            if (result.tooCloseToOtherClaim)
+                            {
+                                GriefPrevention.sendMessage(player, TextMode.Err, Messages.ClaimTooCloseToOtherClaim,
+                                        String.valueOf(GriefPrevention.instance.config_claims_minimumSeparation), result.claim.getOwnerName());
+                            }
+                            else
+                            {
+                                GriefPrevention.sendMessage(player, TextMode.Err, Messages.AutomaticClaimOtherClaimTooClose);
+                            }
 
                             //show the player the protected area
                             BoundaryVisualization.visualizeClaim(player, result.claim, VisualizationType.CONFLICT_ZONE, block);

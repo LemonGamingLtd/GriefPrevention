@@ -28,4 +28,7 @@ public class CreateClaimResult
     //when succeeded, this is a reference to the new claim
     //when failed, this is a reference to the pre-existing, conflicting claim
     public @Nullable Claim claim;
+
+    //when failed due to proximity, this indicates the claim is too close rather than overlapping
+    public boolean tooCloseToOtherClaim = false;
 }

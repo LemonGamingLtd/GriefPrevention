@@ -46,6 +46,16 @@ commands:
       usage: /<command> <player>.  Permits a player to /trust and /untrust players in the claim.
       aliases: [pt, managertrust, mt]
       permission: griefprevention.claims
+    proximitytrust:
+      description: Allows a player to create claims near yours (bypasses minimum separation distance).
+      usage: /<command> <player>.  Permits a player to create claims within the minimum separation distance of your claim.
+      aliases: [pxt, neartrust, nt]
+      permission: griefprevention.claims
+    unproximitytrust:
+      description: Revokes a player's permission to create claims near yours.
+      usage: /<command> <player>.  Removes a player's permission to create claims within the minimum separation distance of your claim.
+      aliases: [upxt, unneartrust, unt]
+      permission: griefprevention.claims
     subdivideclaims:
       description: Switches the shovel tool to subdivision mode, used to subdivide your claims.
       usage: /<command>
