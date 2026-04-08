@@ -404,7 +404,7 @@ public class BlockEventHandler implements Listener
                             if (result.tooCloseToOtherClaim)
                             {
                                 GriefPrevention.sendMessage(player, TextMode.Err, Messages.ClaimTooCloseToOtherClaim,
-                                        String.valueOf(GriefPrevention.instance.config_claims_minimumSeparation), result.claim.getOwnerName());
+                                        String.valueOf(GriefPrevention.instance.config_claims_minimumSeparation), result.claim.getOwnerName(), player.getName());
                             }
                             else
                             {

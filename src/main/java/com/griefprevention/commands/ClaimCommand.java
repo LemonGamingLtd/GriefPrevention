@@ -181,7 +181,7 @@ public class ClaimCommand extends CommandHandler
                 if (result.tooCloseToOtherClaim)
                 {
                     GriefPrevention.sendMessage(player, TextMode.Err, Messages.ClaimTooCloseToOtherClaim, 
-                            String.valueOf(plugin.config_claims_minimumSeparation), result.claim.getOwnerName());
+                            String.valueOf(plugin.config_claims_minimumSeparation), result.claim.getOwnerName(), player.getName());
                 }
                 else
                 {

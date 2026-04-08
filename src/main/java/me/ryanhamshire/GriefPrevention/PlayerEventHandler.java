@@ -2186,7 +2186,7 @@ class PlayerEventHandler implements Listener
                         if (result.tooCloseToOtherClaim)
                         {
                             GriefPrevention.sendMessage(player, TextMode.Err, Messages.ClaimTooCloseToOtherClaim, 
-                                    String.valueOf(instance.config_claims_minimumSeparation), result.claim.getOwnerName());
+                                    String.valueOf(instance.config_claims_minimumSeparation), result.claim.getOwnerName(), player.getName());
                         }
                         else
                         {

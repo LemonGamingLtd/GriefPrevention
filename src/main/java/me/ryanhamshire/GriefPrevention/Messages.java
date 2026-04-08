@@ -214,7 +214,7 @@ public enum Messages
     SubclaimRestricted("This subclaim's permissions will no longer inherit from the parent claim"),
     SubclaimUnrestricted("This subclaim's permissions will now inherit from the parent claim"),
     NetherPortalTrapDetectionMessage("It seems you might be stuck inside a nether portal. We will rescue you in a few seconds if that is the case!", "Sent to player on join, if they left while inside a nether portal."),
-    ClaimTooCloseToOtherClaim("You can't create a claim within {0} blocks of {1}'s claim.", "0: minimum separation distance; 1: nearby claim owner"),
+    ClaimTooCloseToOtherClaim("You can't create a claim within {0} blocks of {1}'s claim. Ask them to run /proximitytrust {2} to allow you.", "0: minimum separation distance; 1: nearby claim owner; 2: your name"),
     ProximityTrustGranted("Granted {0} permission to create claims near {1}.", "0: target player; 1: scope (this claim/all your claims)"),
     ProximityTrustRevoked("Revoked {0}'s permission to create claims near {1}.", "0: target player; 1: scope (this claim/all your claims)"),
     ProximityPermission("create claims nearby");
