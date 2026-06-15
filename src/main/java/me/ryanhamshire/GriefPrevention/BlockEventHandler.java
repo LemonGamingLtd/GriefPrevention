@@ -283,7 +283,7 @@ public class BlockEventHandler implements Listener
                 if (claim != null)
                 {
                     playerData.lastClaim = claim;
-                    Supplier<String> noContainerReason = claim.checkPermission(player, ClaimPermission.Inventory, placeEvent);
+                    Supplier<String> noContainerReason = claim.checkPermission(player, ClaimPermission.Container, placeEvent);
                     if (noContainerReason == null)
                         return;
 
@@ -497,9 +497,6 @@ public class BlockEventHandler implements Listener
     };
     private void denyConnectingDoubleChestsAcrossClaimBoundary(Claim claim, Block block, Player player)
     {
-        UUID claimOwner = null;
-        if (claim != null)
-            claimOwner = claim.getOwnerID();
 
         // Check for double chests placed just outside the claim boundary
         if (block.getBlockData() instanceof Chest chest)
@@ -510,11 +507,12 @@ public class BlockEventHandler implements Listener
                 if (!(relative.getBlockData() instanceof Chest relativeChest)) continue;
 
                 Claim relativeClaim = this.dataStore.getClaimAt(relative.getLocation(), true, claim);
-                UUID relativeClaimOwner = relativeClaim == null ? null : relativeClaim.getOwnerID();
 
-                // Chests outside claims should connect (both null)
-                // and chests inside the same claim should connect (equal)
-                if (Objects.equals(claimOwner, relativeClaimOwner)) break;
+                // Chests outside claims should connect, and chests in claims owned by the same owner should connect.
+                if (sameClaimOwner(claim, relativeClaim)) break;
+
+                // Ignore existing double chests; only adjacent single chests are handled here.
+                if (relativeChest.getType() != Chest.Type.SINGLE) continue;
 
                 // Change both chests to singular chests
                 chest.setType(Chest.Type.SINGLE);
@@ -528,6 +526,16 @@ public class BlockEventHandler implements Listener
                 break;
             }
         }
+    }
+
+    private boolean sameClaimOwner(Claim first, Claim second)
+    {
+        // Important: wilderness and admin claims must not be treated as the same
+        // just because both may have a null owner ID.
+        if (first == null || second == null)
+            return first == second;
+
+        return Objects.equals(first.getOwnerID(), second.getOwnerID());
     }
 
     // Prevent pistons pushing blocks into or out of claims.
@@ -810,7 +818,7 @@ public class BlockEventHandler implements Listener
             return;
         }
 
-        if (!GriefPrevention.instance.config_fireSpreads && igniteEvent.getCause() != IgniteCause.FLINT_AND_STEEL && igniteEvent.getCause() != IgniteCause.LIGHTNING)
+        if (!GriefPrevention.instance.config_fireSpreads && igniteEvent.getCause() != IgniteCause.FLINT_AND_STEEL && igniteEvent.getCause() != IgniteCause.LIGHTNING && igniteEvent.getCause() != IgniteCause.FIREBALL)
         {
             igniteEvent.setCancelled(true);
         }
@@ -1162,7 +1170,7 @@ public class BlockEventHandler implements Listener
             return;
         }
 
-        Supplier<String> allowContainer = claim.checkPermission(shooter, ClaimPermission.Inventory, event);
+        Supplier<String> allowContainer = claim.checkPermission(shooter, ClaimPermission.Container, event);
 
         if (allowContainer != null)
         {
