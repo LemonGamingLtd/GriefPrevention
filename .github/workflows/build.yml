@@ -15,6 +15,6 @@ jobs:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       MAVEN_SETTINGS: ${{ secrets.MAVEN_SETTINGS }}
     with:
-      java_version: 21
+      java_version: 25
       artifact_folders: |
         .
