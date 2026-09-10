@@ -5,7 +5,7 @@ main: me.ryanhamshire.GriefPrevention.GriefPrevention
 softdepend: [Multiverse-Core, My_Worlds, MystCraft, Transporter, RoyalCommands, MultiWorld, Denizen, CommandHelper]
 dev-url: https://dev.bukkit.org/projects/grief-prevention
 version: '${git.commit.id.describe}'
-api-version: '1.21.11'
+api-version: '26.2'
 folia-supported: true
 commands:
     abandonclaim:
@@ -23,7 +23,7 @@ commands:
       permission: griefprevention.abandonallclaims
     trust:
       description: Grants a player full access to your claim(s).
-      usage: /<command> <player>  Grants a player permission to build.  See also /untrust, /containertrust, /accesstrust, and /permissiontrust.
+      usage: /<command> <player>  Grants a player permission to build.  See also /untrust, /containertrust, /accesstrust, and /managetrust.
       aliases: tr
       permission: griefprevention.claims
     untrust:
@@ -41,10 +41,10 @@ commands:
       usage: /<command> <player>.  Grants a player access to your bed, buttons, and levers.
       aliases: at
       permission: griefprevention.claims
-    permissiontrust:
+    managetrust:
       description: Grants a player permission to manage the claim trustlist.
       usage: /<command> <player>.  Permits a player to /trust and /untrust players in the claim.
-      aliases: [pt, managertrust, mt]
+      aliases: [pt, managertrust, mt, permissiontrust]
       permission: griefprevention.claims
     proximitytrust:
       description: Allows a player to create claims near yours (bypasses minimum separation distance).

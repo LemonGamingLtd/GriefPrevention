@@ -175,10 +175,7 @@ public class Claim
 
         for (String managerID : managerIDs)
         {
-            if (managerID != null && !managerID.isEmpty())
-            {
-                this.managers.add(managerID);
-            }
+            this.setPermission(managerID, ClaimPermission.Manage);
         }
 
         this.inheritNothing = inheritNothing;
@@ -330,8 +327,6 @@ public class Claim
     {
         if (uuid.equals(this.getOwnerID())) return true;
 
-        if (level == ClaimPermission.Manage) return this.managers.contains(uuid.toString());
-
         return level.isGrantedBy(this.playerIDToClaimPermissionMap.get(uuid.toString()));
     }
 
@@ -339,19 +334,6 @@ public class Claim
     {
         // Check explicit ClaimPermission for UUID
         if (this.hasExplicitPermission(player.getUniqueId(), level)) return true;
-
-        // Special case managers - a separate list is used.
-        if (level == ClaimPermission.Manage)
-        {
-            for (String node : this.managers)
-            {
-                // Ensure valid permission format for permissions - [permission.node]
-                if (node.length() < 3 || node.charAt(0) != '[' || node.charAt(node.length() - 1) != ']') continue;
-                // Check if player has node
-                if (player.hasPermission(node.substring(1, node.length() - 1))) return true;
-            }
-            return false;
-        }
 
         // Check permission-based ClaimPermission
         for (Map.Entry<String, ClaimPermission> stringToPermission : this.playerIDToClaimPermissionMap.entrySet())
@@ -612,8 +594,6 @@ public class Claim
 
         if (permissionLevel == null)
             dropPermission(playerID);
-        else if (permissionLevel == ClaimPermission.Manage)
-            this.managers.add(playerID.toLowerCase());
         else
             this.playerIDToClaimPermissionMap.put(playerID.toLowerCase(), permissionLevel);
     }
@@ -623,7 +603,6 @@ public class Claim
     {
         playerID = playerID.toLowerCase();
         this.playerIDToClaimPermissionMap.remove(playerID);
-        this.managers.remove(playerID);
 
         for (Claim child : this.children)
         {
@@ -635,7 +614,6 @@ public class Claim
     public void clearPermissions()
     {
         this.playerIDToClaimPermissionMap.clear();
-        this.managers.clear();
 
         for (Claim child : this.children)
         {
@@ -687,14 +665,15 @@ public class Claim
             {
                 containers.add(entry.getKey());
             }
+            else if (entry.getValue() == ClaimPermission.Manage)
+            {
+                managers.add(entry.getKey());
+            }
             else
             {
                 accessors.add(entry.getKey());
             }
         }
-
-        //managers are handled a little differently
-        managers.addAll(this.managers);
     }
 
     //returns a copy of the location representing lower x, y, z limits

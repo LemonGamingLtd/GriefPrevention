@@ -53,6 +53,7 @@ import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Llama;
 import org.bukkit.entity.Mule;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.SulfurCube;
 import org.bukkit.entity.Tameable;
 import org.bukkit.entity.Vehicle;
 import org.bukkit.entity.minecart.PoweredMinecart;
@@ -1110,19 +1111,10 @@ class PlayerEventHandler implements Listener
                     }
                 }
             }
-            else  //world repair code for a now-fixed GP bug //TODO: necessary anymore?
-            {
-                //ensure this entity can be tamed by players
-                tameable.setOwner(null);
-                if (tameable instanceof InventoryHolder holder)
-                {
-                    holder.getInventory().clear();
-                }
-            }
         }
 
-        //don't allow interaction with item frames or armor stands in claimed areas without build permission
-        if (entity.getType() == EntityType.ARMOR_STAND || entity instanceof Hanging)
+        //don't allow interaction with item frames, armor stands, or sulfur cubes in claimed areas without build permission
+        if (entity.getType() == EntityType.ARMOR_STAND || entity instanceof Hanging || entity instanceof SulfurCube)
         {
             Supplier<String> noBuildReason = ProtectionHelper.checkPermission(player, entity.getLocation(), ClaimPermission.Build, event);
             if (noBuildReason != null)

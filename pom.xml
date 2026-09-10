@@ -19,7 +19,7 @@
     </licenses>
 
     <properties>
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Default empty argument line to prevent Surefire config causing crashes if no other JVM args are set. -->
@@ -138,8 +138,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Add Mockito agent and retain existing JVM args, if any. -->
-                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                    <!-- Add Mockito agent and retain existing JVM args, if any. Experimental required for JDK 25-->
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off -Dnet.bytebuddy.experimental=true</argLine>
                     <!-- GitHub Actions offers 2 cores for Linux. -->
                     <forkCount>2</forkCount>
                     <!--
@@ -194,11 +194,18 @@
     </build>
 
     <dependencies>
+        <!-- Bukkit API. Bukkit has never ever deployed a release version -->
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>26.2-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- Paper API for Paper-specific features (optional at runtime) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.11-R0.1-SNAPSHOT</version>
+            <version>[26.2.build,)</version>
             <scope>provided</scope>
         </dependency>
         <!-- Annotations for nullity and other behaviors -->
@@ -226,7 +233,7 @@
         <dependency>
             <groupId>io.papermc</groupId>
             <artifactId>paperlib</artifactId>
-            <version>1.0.2</version>
+            <version>1.0.7</version>
             <scope>compile</scope>
         </dependency>
         <!-- FoliaLib -->
