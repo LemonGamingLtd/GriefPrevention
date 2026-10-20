@@ -8,13 +8,44 @@ on:
   pull_request:
     branches: [ '**' ]
 
+# This repo is public, so it can't call the private LemonGamingLtd/workflows maven-build.yml
+# (every run failed at startup) and shouldn't use the self-hosted runners. These steps mirror
+# that workflow on a GitHub-hosted runner. A published release on main is what LGDeploy picks up.
 jobs:
   build:
-    uses: LemonGamingLtd/workflows/.github/workflows/maven-build.yml@main
-    secrets:
-      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-      MAVEN_SETTINGS: ${{ secrets.MAVEN_SETTINGS }}
-    with:
-      java_version: 25
-      artifact_folders: |
-        .
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 25
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+        cache: maven
+
+    # Tests compile but aren't run: some still mock Bukkit the Spigot way, which Paper's registries don't support
+    - name: Build
+      run: ./mvnw -B clean package -DskipTests
+
+    - name: Extract Build Variables
+      id: extract_variables
+      run: echo "project_version=$(./mvnw -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)" >> "$GITHUB_OUTPUT"
+
+    - name: Publish Release
+      uses: softprops/action-gh-release@v2
+      if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      with:
+        name: "${{ github.ref_name }}-${{ steps.extract_variables.outputs.project_version }}-${{ github.run_number }}"
+        tag_name: "build-${{ github.run_number }}"
+        target_commitish: "${{ github.ref_name }}"
+        files: target/GriefPrevention.jar
+
+    - name: Actions Status Discord
+      uses: sarisia/actions-status-discord@v1.8.6
+      if: always() && github.event_name != 'pull_request'
+      with:
+        webhook: ${{ secrets.DISCORD_WEBHOOK }}
