@@ -2750,6 +2750,10 @@ public class GriefPrevention extends JavaPlugin
         //parameter validation
         if (playerID == null) return getDefaultName(null);
 
+        //online players always have their current name, which also refreshes a stale cache entry after a name change
+        Player online = GriefPrevention.instance.getServer().getPlayer(playerID);
+        if (online != null) return lookupPlayerName(online);
+
         //check the cache
         String cached = PLAYER_NAME_CACHE.getIfPresent(playerID);
         if (cached != null) return cached;

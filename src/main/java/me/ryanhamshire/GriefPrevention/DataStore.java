@@ -1238,7 +1238,7 @@ public abstract class DataStore
             }
 
             //make sure player has enough blocks to make up the difference
-            if (!playerData.claimResizing.isAdminClaim() && player.getName().equals(playerData.claimResizing.getOwnerName()))
+            if (!playerData.claimResizing.isAdminClaim() && player.getUniqueId().equals(playerData.claimResizing.ownerID))
             {
                 int newArea;
                 int blocksRemainingAfter;
