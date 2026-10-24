@@ -60,10 +60,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -71,14 +68,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -239,10 +234,6 @@ public class GriefPrevention extends JavaPlugin
     public boolean config_ban_useCommand;
     public String config_ban_commandFormat;
 
-    private String databaseUrl;
-    private String databaseUserName;
-    private String databasePassword;
-
 
     //how far away to search from a tree trunk for its branch blocks
     public static final int TREE_RADIUS = 5;
@@ -282,54 +273,18 @@ public class GriefPrevention extends JavaPlugin
 
         AddLogEntry("Finished loading configuration.");
 
-        //when datastore initializes, it loads player and claim data, and posts some stats to the log
-        if (!this.databaseUrl.isEmpty())
+        try
         {
-            try
-            {
-                DatabaseDataStore databaseStore = new DatabaseDataStore(this.databaseUrl, this.databaseUserName, this.databasePassword);
-
-                this.dataStore = databaseStore;
-            }
-            catch (Exception e)
-            {
-                GriefPrevention.AddLogEntry("Because there was a problem with the database, GriefPrevention will not function properly.  Either update the database config settings resolve the issue, or delete those lines from your config.yml so that GriefPrevention can use the file system to store data.");
-                e.printStackTrace();
-                this.getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
+            this.dataStore = new FlatFileDataStore();
+        }
+        catch (Exception e)
+        {
+            GriefPrevention.AddLogEntry("Unable to initialize the file system data store.  Details:");
+            GriefPrevention.AddLogEntry(e.getMessage());
+            e.printStackTrace();
         }
 
-        //if not using the database because it's not configured or because there was a problem, use the file system to store data
-        //this is the preferred method, as it's simpler than the database scenario
-        if (this.dataStore == null)
-        {
-            File oldclaimdata = new File(getDataFolder(), "ClaimData");
-            if (oldclaimdata.exists())
-            {
-                if (!FlatFileDataStore.hasData())
-                {
-                    File claimdata = new File("plugins" + File.separator + "GriefPreventionData" + File.separator + "ClaimData");
-                    oldclaimdata.renameTo(claimdata);
-                    File oldplayerdata = new File(getDataFolder(), "PlayerData");
-                    File playerdata = new File("plugins" + File.separator + "GriefPreventionData" + File.separator + "PlayerData");
-                    oldplayerdata.renameTo(playerdata);
-                }
-            }
-            try
-            {
-                this.dataStore = new FlatFileDataStore();
-            }
-            catch (Exception e)
-            {
-                GriefPrevention.AddLogEntry("Unable to initialize the file system data store.  Details:");
-                GriefPrevention.AddLogEntry(e.getMessage());
-                e.printStackTrace();
-            }
-        }
-
-        String dataMode = (this.dataStore instanceof FlatFileDataStore) ? "(File Mode)" : "(Database Mode)";
-        AddLogEntry("Finished loading data " + dataMode + ".");
+        AddLogEntry("Finished loading data.");
 
         //unless claim block accrual is disabled, start the recurring per 10 minute event to give claim blocks to online players
         //20L ~ 1 second
@@ -703,9 +658,6 @@ public class GriefPrevention extends JavaPlugin
         this.config_pvp_allowFireNearPlayers_NonPvp = config.getBoolean("GriefPrevention.PvP.AllowFlintAndSteelNearOtherPlayers.NonPvPWorlds", false);
         this.config_pvp_protectPets = config.getBoolean("GriefPrevention.PvP.ProtectPetsOutsideLandClaims", false);
 
-        //optional database settings
-        loadDatabaseSettings(config);
-
         this.config_advanced_fixNegativeClaimblockAmounts = config.getBoolean("GriefPrevention.Advanced.fixNegativeClaimblockAmounts", true);
         this.config_advanced_claim_expiration_check_rate = config.getInt("GriefPrevention.Advanced.ClaimExpirationCheckRate", 60);
         this.config_advanced_offlineplayer_cache_days = config.getInt("GriefPrevention.Advanced.OfflinePlayer_cache_days", 90);
@@ -887,59 +839,6 @@ public class GriefPrevention extends JavaPlugin
         for (String command : commands)
         {
             this.config_pvp_blockedCommands.add(command.trim().toLowerCase());
-        }
-    }
-
-    private void loadDatabaseSettings(@NotNull FileConfiguration legacyConfig)
-    {
-        File databasePropsFile = new File(DataStore.dataLayerFolderPath, "database.properties");
-        Properties databaseProps = new Properties();
-
-        // If properties file exists, use it - old config has already been migrated.
-        if (databasePropsFile.exists() && databasePropsFile.isFile())
-        {
-            try (FileReader reader = new FileReader(databasePropsFile, StandardCharsets.UTF_8))
-            {
-                // Load properties from file.
-                databaseProps.load(reader);
-
-                // Set values from loaded properties.
-                databaseUrl = databaseProps.getProperty("jdbcUrl", "");
-                databaseUserName = databaseProps.getProperty("username", "");
-                databasePassword = databaseProps.getProperty("password", "");
-            }
-            catch (IOException e)
-            {
-                getLogger().log(Level.SEVERE, "Unable to read database.properties", e);
-            }
-
-            return;
-        }
-
-        // Otherwise, database details may not have been migrated from legacy configuration.
-        // Try to load them.
-        databaseUrl = legacyConfig.getString("GriefPrevention.Database.URL", "");
-        databaseUserName = legacyConfig.getString("GriefPrevention.Database.UserName", "");
-        databasePassword = legacyConfig.getString("GriefPrevention.Database.Password", "");
-
-        // If not in use already, database settings are "secret" to discourage adoption until datastore is rewritten.
-        if (databaseUrl.isBlank()) {
-            return;
-        }
-
-        // Set properties to loaded values.
-        databaseProps.setProperty("jdbcUrl", databaseUrl);
-        databaseProps.setProperty("username", databaseUserName);
-        databaseProps.setProperty("password", databasePassword);
-
-        // Write properties file for future usage.
-        try (FileWriter writer = new FileWriter(databasePropsFile, StandardCharsets.UTF_8))
-        {
-            databaseProps.store(writer, null);
-        }
-        catch (IOException e)
-        {
-            getLogger().log(Level.SEVERE, "Unable to write database.properties", e);
         }
     }
 
