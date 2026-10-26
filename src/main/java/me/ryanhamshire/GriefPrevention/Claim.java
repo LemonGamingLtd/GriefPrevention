@@ -181,7 +181,7 @@ public class Claim
         this.inheritNothing = inheritNothing;
     }
 
-    Claim(Location lesserBoundaryCorner, Location greaterBoundaryCorner, UUID ownerID, List<String> builderIDs, List<String> containerIDs, List<String> accessorIDs, List<String> managerIDs, Long id)
+    public Claim(Location lesserBoundaryCorner, Location greaterBoundaryCorner, UUID ownerID, List<String> builderIDs, List<String> containerIDs, List<String> accessorIDs, List<String> managerIDs, Long id)
     {
         this(lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builderIDs, containerIDs, accessorIDs, managerIDs, false, id);
     }
@@ -189,7 +189,7 @@ public class Claim
     //produces a copy of a claim.
     public Claim(Claim claim) {
         this.modifiedDate = claim.modifiedDate;
-        this.lesserBoundaryCorner = claim.greaterBoundaryCorner.clone();
+        this.lesserBoundaryCorner = claim.lesserBoundaryCorner.clone();
         this.greaterBoundaryCorner = claim.greaterBoundaryCorner.clone();
         this.id = claim.id;
         this.ownerID = claim.ownerID;
@@ -330,27 +330,6 @@ public class Claim
         return level.isGrantedBy(this.playerIDToClaimPermissionMap.get(uuid.toString()));
     }
 
-    public boolean hasExplicitPermission(@NotNull Player player, @NotNull ClaimPermission level)
-    {
-        // Check explicit ClaimPermission for UUID
-        if (this.hasExplicitPermission(player.getUniqueId(), level)) return true;
-
-        // Check permission-based ClaimPermission
-        for (Map.Entry<String, ClaimPermission> stringToPermission : this.playerIDToClaimPermissionMap.entrySet())
-        {
-            String node = stringToPermission.getKey();
-            // Ensure valid permission format for permissions - [permission.node]
-            if (node.length() < 3 || node.charAt(0) != '[' || node.charAt(node.length() - 1) != ']') continue;
-
-            // Check if level is high enough and player has node
-            if (level.isGrantedBy(stringToPermission.getValue())
-                    && player.hasPermission(node.substring(1, node.length() - 1)))
-                return true;
-        }
-
-        return false;
-    }
-
     /**
      * Check whether a Player has a certain level of trust.
      *
@@ -464,7 +443,7 @@ public class Claim
         // Look for explicit individual permission.
         if (player != null)
         {
-            if (this.hasExplicitPermission(player, permission)) return null;
+            if (this.hasExplicitPermission(player.getUniqueId(), permission)) return null;
         }
         else
         {

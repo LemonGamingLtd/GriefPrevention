@@ -62,10 +62,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -73,14 +70,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -250,10 +245,6 @@ public class GriefPrevention extends JavaPlugin
     public boolean config_ban_useCommand;
     public String config_ban_commandFormat;
 
-    private String databaseUrl;
-    private String databaseUserName;
-    private String databasePassword;
-
 
     //how far away to search from a tree trunk for its branch blocks
     public static final int TREE_RADIUS = 5;
@@ -295,63 +286,18 @@ public class GriefPrevention extends JavaPlugin
 
         AddLogEntry("Finished loading configuration.");
 
-        //when datastore initializes, it loads player and claim data, and posts some stats to the log
-        if (!this.databaseUrl.isEmpty())
+        try
         {
-            try
-            {
-                DatabaseDataStore databaseStore = new DatabaseDataStore(this.databaseUrl, this.databaseUserName, this.databasePassword);
-
-                if (FlatFileDataStore.hasData())
-                {
-                    GriefPrevention.AddLogEntry("There appears to be some data on the hard drive.  Migrating those data to the database...");
-                    FlatFileDataStore flatFileStore = new FlatFileDataStore();
-                    this.dataStore = flatFileStore;
-                    flatFileStore.migrateData(databaseStore);
-                    GriefPrevention.AddLogEntry("Data migration process complete.");
-                }
-
-                this.dataStore = databaseStore;
-            }
-            catch (Exception e)
-            {
-                GriefPrevention.AddLogEntry("Because there was a problem with the database, GriefPrevention will not function properly.  Either update the database config settings resolve the issue, or delete those lines from your config.yml so that GriefPrevention can use the file system to store data.");
-                e.printStackTrace();
-                this.getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
+            this.dataStore = new FlatFileDataStore();
+        }
+        catch (Exception e)
+        {
+            GriefPrevention.AddLogEntry("Unable to initialize the file system data store.  Details:");
+            GriefPrevention.AddLogEntry(e.getMessage());
+            e.printStackTrace();
         }
 
-        //if not using the database because it's not configured or because there was a problem, use the file system to store data
-        //this is the preferred method, as it's simpler than the database scenario
-        if (this.dataStore == null)
-        {
-            File oldclaimdata = new File(getDataFolder(), "ClaimData");
-            if (oldclaimdata.exists())
-            {
-                if (!FlatFileDataStore.hasData())
-                {
-                    File claimdata = new File("plugins" + File.separator + "GriefPreventionData" + File.separator + "ClaimData");
-                    oldclaimdata.renameTo(claimdata);
-                    File oldplayerdata = new File(getDataFolder(), "PlayerData");
-                    File playerdata = new File("plugins" + File.separator + "GriefPreventionData" + File.separator + "PlayerData");
-                    oldplayerdata.renameTo(playerdata);
-                }
-            }
-            try
-            {
-                this.dataStore = new FlatFileDataStore();
-            }
-            catch (Exception e)
-            {
-                GriefPrevention.AddLogEntry("Unable to initialize the file system data store.  Details:");
-                GriefPrevention.AddLogEntry(e.getMessage());
-                e.printStackTrace();
-            }
-        }
-
-        String dataMode = (this.dataStore instanceof FlatFileDataStore) ? "(File Mode)" : "(Database Mode)";
-        AddLogEntry("Finished loading data " + dataMode + ".");
+        AddLogEntry("Finished loading data.");
 
         //unless claim block accrual is disabled, start the recurring per 10 minute event to give claim blocks to online players
         //20L ~ 1 second
@@ -731,9 +677,6 @@ public class GriefPrevention extends JavaPlugin
         this.config_pvp_allowFireNearPlayers_NonPvp = config.getBoolean("GriefPrevention.PvP.AllowFlintAndSteelNearOtherPlayers.NonPvPWorlds", false);
         this.config_pvp_protectPets = config.getBoolean("GriefPrevention.PvP.ProtectPetsOutsideLandClaims", false);
 
-        //optional database settings
-        loadDatabaseSettings(config);
-
         this.config_advanced_fixNegativeClaimblockAmounts = config.getBoolean("GriefPrevention.Advanced.fixNegativeClaimblockAmounts", true);
         this.config_advanced_claim_expiration_check_rate = config.getInt("GriefPrevention.Advanced.ClaimExpirationCheckRate", 60);
         this.config_advanced_offlineplayer_cache_days = config.getInt("GriefPrevention.Advanced.OfflinePlayer_cache_days", 90);
@@ -917,59 +860,6 @@ public class GriefPrevention extends JavaPlugin
         for (String command : commands)
         {
             this.config_pvp_blockedCommands.add(command.trim().toLowerCase());
-        }
-    }
-
-    private void loadDatabaseSettings(@NotNull FileConfiguration legacyConfig)
-    {
-        File databasePropsFile = new File(DataStore.dataLayerFolderPath, "database.properties");
-        Properties databaseProps = new Properties();
-
-        // If properties file exists, use it - old config has already been migrated.
-        if (databasePropsFile.exists() && databasePropsFile.isFile())
-        {
-            try (FileReader reader = new FileReader(databasePropsFile, StandardCharsets.UTF_8))
-            {
-                // Load properties from file.
-                databaseProps.load(reader);
-
-                // Set values from loaded properties.
-                databaseUrl = databaseProps.getProperty("jdbcUrl", "");
-                databaseUserName = databaseProps.getProperty("username", "");
-                databasePassword = databaseProps.getProperty("password", "");
-            }
-            catch (IOException e)
-            {
-                getLogger().log(Level.SEVERE, "Unable to read database.properties", e);
-            }
-
-            return;
-        }
-
-        // Otherwise, database details may not have been migrated from legacy configuration.
-        // Try to load them.
-        databaseUrl = legacyConfig.getString("GriefPrevention.Database.URL", "");
-        databaseUserName = legacyConfig.getString("GriefPrevention.Database.UserName", "");
-        databasePassword = legacyConfig.getString("GriefPrevention.Database.Password", "");
-
-        // If not in use already, database settings are "secret" to discourage adoption until datastore is rewritten.
-        if (databaseUrl.isBlank()) {
-            return;
-        }
-
-        // Set properties to loaded values.
-        databaseProps.setProperty("jdbcUrl", databaseUrl);
-        databaseProps.setProperty("username", databaseUserName);
-        databaseProps.setProperty("password", databasePassword);
-
-        // Write properties file for future usage.
-        try (FileWriter writer = new FileWriter(databasePropsFile, StandardCharsets.UTF_8))
-        {
-            databaseProps.store(writer, null);
-        }
-        catch (IOException e)
-        {
-            getLogger().log(Level.SEVERE, "Unable to write database.properties", e);
         }
     }
 
@@ -1277,7 +1167,7 @@ public class GriefPrevention extends JavaPlugin
             //change ownerhsip
             try
             {
-                this.dataStore.changeClaimOwner(claim, newOwnerID);
+                if (!this.dataStore.changeClaimOwner(claim, newOwnerID)) return true;
             }
             catch (NoTransferException e)
             {
@@ -1388,7 +1278,7 @@ public class GriefPrevention extends JavaPlugin
             return true;
         }
 
-        //untrust <player> or untrust [<group>]
+        //untrust <player>
         else if (cmd.getName().equalsIgnoreCase("untrust") && player != null)
         {
             //requires exactly one parameter, the other player's name
@@ -1414,28 +1304,18 @@ public class GriefPrevention extends JavaPlugin
             }
             else
             {
-                //validate player argument or group argument
-                if (!args[0].startsWith("[") || !args[0].endsWith("]"))
+                //validate player argument
+                otherPlayer = this.resolvePlayerByName(args[0]);
+                if (!clearPermissions && otherPlayer == null && !args[0].equals("public"))
                 {
-                    otherPlayer = this.resolvePlayerByName(args[0]);
-                    if (!clearPermissions && otherPlayer == null && !args[0].equals("public"))
-                    {
-                        //bracket any permissions - at this point it must be a permission without brackets
-                        if (args[0].contains("."))
-                        {
-                            args[0] = "[" + args[0] + "]";
-                        }
-                        else
-                        {
-                            GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
-                            return true;
-                        }
-                    }
-
-                    //correct to proper casing
-                    if (otherPlayer != null)
-                        args[0] = otherPlayer.getName();
+                    GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
+                    return true;
                 }
+
+                //correct to proper casing
+                if (otherPlayer != null)
+                    args[0] = otherPlayer.getName();
+
             }
 
             //if no claim here, apply changes to all his claims
@@ -1911,8 +1791,8 @@ public class GriefPrevention extends JavaPlugin
             Vector<Claim> claims = playerData.getClaims();
             GriefPrevention.sendMessage(player, TextMode.Instr, Messages.StartBlockMath,
                     String.valueOf(playerData.getAccruedClaimBlocks()),
-                    String.valueOf((playerData.getBonusClaimBlocks() + this.dataStore.getGroupBonusBlocks(otherPlayer.getUniqueId()))),
-                    String.valueOf((playerData.getAccruedClaimBlocks() + playerData.getBonusClaimBlocks() + this.dataStore.getGroupBonusBlocks(otherPlayer.getUniqueId()))));
+                    String.valueOf((playerData.getBonusClaimBlocks())),
+                    String.valueOf((playerData.getAccruedClaimBlocks() + playerData.getBonusClaimBlocks())));
             if (!claims.isEmpty())
             {
                 GriefPrevention.sendMessage(player, TextMode.Instr, Messages.ClaimsListHeader);
@@ -2001,10 +1881,10 @@ public class GriefPrevention extends JavaPlugin
             return true;
         }
 
-        //adjustbonusclaimblocks <player> <amount> or [<permission>] amount
+        //adjustbonusclaimblocks <player> <amount>
         else if (cmd.getName().equalsIgnoreCase("adjustbonusclaimblocks"))
         {
-            //requires exactly two parameters, the other player or group's name and the adjustment
+            //requires exactly two parameters, the other player's name and the adjustment
             if (args.length != 2) return false;
 
             //parse the adjustment amount
@@ -2016,19 +1896,6 @@ public class GriefPrevention extends JavaPlugin
             catch (NumberFormatException numberFormatException)
             {
                 return false;  //causes usage to be displayed
-            }
-
-            //if granting blocks to all players with a specific permission
-            if (args[0].startsWith("[") && args[0].endsWith("]"))
-            {
-                String permissionIdentifier = args[0].substring(1, args[0].length() - 1);
-                int newTotal = this.dataStore.adjustGroupBonusBlocks(permissionIdentifier, adjustment);
-
-                GriefPrevention.sendMessage(player, TextMode.Success, Messages.AdjustGroupBlocksSuccess, permissionIdentifier, String.valueOf(adjustment), String.valueOf(newTotal));
-                if (player != null)
-                    GriefPrevention.AddLogEntry(player.getName() + " adjusted " + permissionIdentifier + "'s bonus claim blocks by " + adjustment + ".");
-
-                return true;
             }
 
             //otherwise, find the specified player
@@ -2388,7 +2255,7 @@ public class GriefPrevention extends JavaPlugin
 
     private String trustEntryToPlayerName(String entry)
     {
-        if (entry.startsWith("[") || entry.equals("public"))
+        if (entry.equals("public"))
         {
             return entry;
         }
@@ -2457,43 +2324,24 @@ public class GriefPrevention extends JavaPlugin
         //determine which claim the player is standing in
         Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
 
-        //validate player or group argument
-        String permission = null;
+        //validate player
         OfflinePlayer otherPlayer = null;
         UUID recipientID = null;
-        if (recipientName.startsWith("[") && recipientName.endsWith("]"))
+        otherPlayer = this.resolvePlayerByName(recipientName);
+        
+        if (otherPlayer == null && !recipientName.equals("public") && !recipientName.equals("all"))
         {
-            permission = recipientName.substring(1, recipientName.length() - 1);
-            if (permission == null || permission.isEmpty())
-            {
-                GriefPrevention.sendMessage(player, TextMode.Err, Messages.InvalidPermissionID);
-                return;
-            }
+            GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
+            return;
+        }
+        else if (otherPlayer != null)
+        {
+            recipientName = otherPlayer.getName();
+            recipientID = otherPlayer.getUniqueId();
         }
         else
         {
-            otherPlayer = this.resolvePlayerByName(recipientName);
-            boolean isPermissionFormat = recipientName.contains(".");
-            if (otherPlayer == null && !recipientName.equals("public") && !recipientName.equals("all") && !isPermissionFormat)
-            {
-                GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
-                return;
-            }
-
-            if (otherPlayer == null && isPermissionFormat)
-            {
-                //player does not exist and argument has a period so this is a permission instead
-                permission = recipientName;
-            }
-            else if (otherPlayer != null)
-            {
-                recipientName = otherPlayer.getName();
-                recipientID = otherPlayer.getUniqueId();
-            }
-            else
-            {
-                recipientName = "public";
-            }
+            recipientName = "public";
         }
 
         //determine which claims should be modified
@@ -2523,13 +2371,7 @@ public class GriefPrevention extends JavaPlugin
         }
 
         String identifierToAdd = recipientName;
-        if (permission != null)
-        {
-            identifierToAdd = "[" + permission + "]";
-            //replace recipientName as well so the success message clearly signals a permission
-            recipientName = identifierToAdd;
-        }
-        else if (recipientID != null)
+        if (recipientID != null)
         {
             identifierToAdd = recipientID.toString();
         }

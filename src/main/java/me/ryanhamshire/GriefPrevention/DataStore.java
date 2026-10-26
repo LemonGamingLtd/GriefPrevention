@@ -68,9 +68,6 @@ public abstract class DataStore
     //in-memory cache for player data
     protected ConcurrentHashMap<UUID, PlayerData> playerNameToPlayerDataMap = new ConcurrentHashMap<>();
 
-    //in-memory cache for group (permission-based) data
-    protected ConcurrentHashMap<String, Integer> permissionToBonusBlocksMap = new ConcurrentHashMap<>();
-
     //in-memory cache for claim data
     ArrayList<Claim> claims = new ArrayList<>();
     // claim id to claim cache
@@ -159,31 +156,6 @@ public abstract class DataStore
         //load up all the messages from messages.yml
         this.loadMessages();
         GriefPrevention.AddLogEntry("Customizable messages loaded.");
-
-        //if converting up from an earlier schema version, write all claims back to storage using the latest format
-        if (this.getSchemaVersion() < latestSchemaVersion)
-        {
-            GriefPrevention.AddLogEntry("Please wait.  Updating data format.");
-
-            for (Claim claim : this.claims)
-            {
-                this.saveClaim(claim);
-
-                for (Claim subClaim : claim.children)
-                {
-                    this.saveClaim(subClaim);
-                }
-            }
-
-            //clean up any UUID conversion work
-            if (UUIDFetcher.lookupCache != null)
-            {
-                UUIDFetcher.lookupCache.clear();
-                UUIDFetcher.correctedNames.clear();
-            }
-
-            GriefPrevention.AddLogEntry("Update finished.");
-        }
 
         //load list of soft mutes
         this.loadSoftMutes();
@@ -334,45 +306,6 @@ public abstract class DataStore
         this.playerNameToPlayerDataMap.remove(playerID);
     }
 
-    //gets the number of bonus blocks a player has from his permissions
-    //Bukkit doesn't allow for checking permissions of an offline player.
-    //this will return 0 when he's offline, and the correct number when online.
-    synchronized public int getGroupBonusBlocks(UUID playerID)
-    {
-        Player player = GriefPrevention.instance.getServer().getPlayer(playerID);
-
-        if (player == null) return 0;
-
-        int bonusBlocks = 0;
-
-        for (Map.Entry<String, Integer> groupEntry : this.permissionToBonusBlocksMap.entrySet())
-        {
-            if (player.hasPermission(groupEntry.getKey()))
-            {
-                bonusBlocks += groupEntry.getValue();
-            }
-        }
-
-        return bonusBlocks;
-    }
-
-    //grants a group (players with a specific permission) bonus claim blocks as long as they're still members of the group
-    synchronized public int adjustGroupBonusBlocks(String groupName, int amount)
-    {
-        Integer currentValue = this.permissionToBonusBlocksMap.get(groupName);
-        if (currentValue == null) currentValue = 0;
-
-        currentValue += amount;
-        this.permissionToBonusBlocksMap.put(groupName, currentValue);
-
-        //write changes to storage to ensure they don't get lost
-        this.saveGroupBonusBlocks(groupName, currentValue);
-
-        return currentValue;
-    }
-
-    abstract void saveGroupBonusBlocks(String groupName, int amount);
-
     public class NoTransferException extends RuntimeException
     {
         private static final long serialVersionUID = 1L;
@@ -383,7 +316,7 @@ public abstract class DataStore
         }
     }
 
-    synchronized public void changeClaimOwner(Claim claim, UUID newOwnerID)
+    synchronized public boolean changeClaimOwner(Claim claim, UUID newOwnerID)
     {
         //if it's a subdivision, throw an exception
         if (claim.parent != null)
@@ -405,7 +338,7 @@ public abstract class DataStore
         Bukkit.getPluginManager().callEvent(event);
 
         //return if event is cancelled
-        if (event.isCancelled()) return;
+        if (event.isCancelled()) return false;
 
         //determine new owner
         PlayerData newOwnerData = null;
@@ -429,6 +362,8 @@ public abstract class DataStore
         {
             newOwnerData.getClaims().add(claim);
         }
+
+        return true;
     }
 
     //adds a claim to the datastore, making it an effective claim
@@ -760,7 +695,7 @@ public abstract class DataStore
 
     //returns a read-only access point for the list of all land claims
     //if you need to make changes, use provided methods like .deleteClaim() and .createClaim().
-    //this will ensure primary memory (RAM) and secondary memory (disk, database) stay in sync
+    //this will ensure primary memory (RAM) and secondary memory (disk) stay in sync
     public Collection<Claim> getClaims()
     {
         return Collections.unmodifiableCollection(this.claims);
@@ -1437,43 +1372,6 @@ public abstract class DataStore
         }
 
         return message;
-    }
-
-    //used in updating the data schema from 0 to 1.
-    //converts player names in a list to uuids
-    protected List<String> convertNameListToUUIDList(List<String> names)
-    {
-        //doesn't apply after schema has been updated to version 1
-        if (this.getSchemaVersion() >= 1) return names;
-
-        //list to build results
-        List<String> resultNames = new ArrayList<>();
-
-        for (String name : names)
-        {
-            //skip non-player-names (groups and "public"), leave them as-is
-            if (name.startsWith("[") || name.equals("public"))
-            {
-                resultNames.add(name);
-                continue;
-            }
-
-            //otherwise try to convert to a UUID
-            UUID playerID = null;
-            try
-            {
-                playerID = UUIDFetcher.getUUIDOf(name);
-            }
-            catch (Exception ex) { }
-
-            //if successful, replace player name with corresponding UUID
-            if (playerID != null)
-            {
-                resultNames.add(playerID.toString());
-            }
-        }
-
-        return resultNames;
     }
 
     abstract void close();

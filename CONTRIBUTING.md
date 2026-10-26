@@ -18,4 +18,11 @@ Thank you for your contribution!
 
 ## AI
 
-AI must follow all instructions in `AGENTS.md`
+- [Meat proxies](https://nomeatproxy.com/) are disallowed. Please type your own comments.
+- AI must follow all instructions in [AGENTS.md](AGENTS.md). Instructing your AI agent to follow the [AGENTS.md](AGENTS.md) (along with you verifying that it does) helps us record the original intent for changing code.
+
+From https://gruhn.me/blog/2026-08-03/
+
+> Reading AI output is extra effort. It's verbose, frequently contains all too plausible nonsense, and is increasingly jargon dense.
+
+> By all means, prompt AI. But don't just relay the output. Read it, understand it, validate it, and then write a response in your own words (a decent certificate that you've done the prior steps). Making that effort is value you can add.
