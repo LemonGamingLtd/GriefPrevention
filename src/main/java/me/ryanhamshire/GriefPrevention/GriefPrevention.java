@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.griefprevention.commands.ClaimCommand;
 import com.griefprevention.metrics.MetricsHandler;
 import com.griefprevention.platform.knockback.KnockbackProtectionListener;
+import com.griefprevention.protection.CushionProtectionListener;
 import com.griefprevention.protection.InteractionProtectionHandler;
 import com.griefprevention.protection.ProtectionHelper;
 import com.tcoded.folialib.FoliaLib;
@@ -337,6 +338,9 @@ public class GriefPrevention extends JavaPlugin
 
         //special interaction-related events
         pluginManager.registerEvents(new InteractionProtectionHandler(), this);
+
+        //cushions fire no hanging or damage events, only Paper's entity place/break events
+        new CushionProtectionListener().register(this);
 
         //cache offline players
         OfflinePlayer[] offlinePlayers = this.getServer().getOfflinePlayers();
