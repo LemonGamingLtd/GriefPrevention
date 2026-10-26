@@ -1591,7 +1591,7 @@ class PlayerEventHandler implements Listener
 
                 // Check line of sight to prevent through-wall container access exploits
                 if (instance.config_claims_containerLineOfSightRequired
-                        && !claim.hasExplicitPermission(player, ClaimPermission.Build)
+                        && !claim.hasExplicitPermission(player.getUniqueId(), ClaimPermission.Build)
                         && !hasLineOfSight(player, clickedBlock))
                 {
                     event.setCancelled(true);
