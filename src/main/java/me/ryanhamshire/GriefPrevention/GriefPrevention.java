@@ -68,10 +68,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -381,39 +379,8 @@ public class GriefPrevention extends JavaPlugin
         //read configuration settings (note defaults)
         int configVersion = config.getInt("GriefPrevention.ConfigVersion", 0);
 
-        //get (deprecated node) claims world names from the config file
+        //get claims world names from the config file
         List<World> worlds = this.getServer().getWorlds();
-        List<String> deprecated_claimsEnabledWorldNames = config.getStringList("GriefPrevention.Claims.Worlds");
-
-        //validate that list
-        for (int i = 0; i < deprecated_claimsEnabledWorldNames.size(); i++)
-        {
-            String worldName = deprecated_claimsEnabledWorldNames.get(i);
-            World world = this.getServer().getWorld(worldName);
-            if (world == null)
-            {
-                deprecated_claimsEnabledWorldNames.remove(i--);
-            }
-        }
-
-        //get (deprecated node) creative world names from the config file
-        List<String> deprecated_creativeClaimsEnabledWorldNames = config.getStringList("GriefPrevention.Claims.CreativeRulesWorlds");
-
-        //validate that list
-        for (int i = 0; i < deprecated_creativeClaimsEnabledWorldNames.size(); i++)
-        {
-            String worldName = deprecated_creativeClaimsEnabledWorldNames.get(i);
-            World world = this.getServer().getWorld(worldName);
-            if (world == null)
-            {
-                deprecated_claimsEnabledWorldNames.remove(i--);
-            }
-        }
-
-        //get (deprecated) pvp fire placement proximity note and use it if it exists (in the new config format it will be overwritten later).
-        config_pvp_allowFireNearPlayers = config.getBoolean("GriefPrevention.PvP.AllowFlintAndSteelNearOtherPlayers", false);
-        //get (deprecated) pvp lava dump proximity note and use it if it exists (in the new config format it will be overwritten later).
-        config_pvp_allowLavaNearPlayers = config.getBoolean("GriefPrevention.PvP.AllowLavaDumpingNearOtherPlayers", false);
 
         //decide claim mode for each world
         this.config_claims_worldModes = new ConcurrentHashMap<>();
@@ -439,19 +406,8 @@ public class GriefPrevention extends JavaPlugin
                 }
             }
 
-            //was it specified in a deprecated config node?
-            if (deprecated_creativeClaimsEnabledWorldNames.contains(world.getName()))
-            {
-                this.config_claims_worldModes.put(world, ClaimsMode.Creative);
-                this.config_creativeWorldsExist = true;
-            }
-            else if (deprecated_claimsEnabledWorldNames.contains(world.getName()))
-            {
-                this.config_claims_worldModes.put(world, ClaimsMode.Survival);
-            }
-
             //does the world's name indicate its purpose?
-            else if (world.getName().toLowerCase().contains("survival"))
+            if (world.getName().toLowerCase().contains("survival"))
             {
                 this.config_claims_worldModes.put(world, ClaimsMode.Survival);
             }
@@ -474,15 +430,6 @@ public class GriefPrevention extends JavaPlugin
             else
             {
                 this.config_claims_worldModes.put(world, ClaimsMode.Disabled);
-            }
-
-            //if the setting WOULD be disabled but this is a server upgrading from the old config format,
-            //then default to survival mode for safety's sake (to protect any admin claims which may 
-            //have been created there)
-            if (this.config_claims_worldModes.get(world) == ClaimsMode.Disabled &&
-                    !deprecated_claimsEnabledWorldNames.isEmpty())
-            {
-                this.config_claims_worldModes.put(world, ClaimsMode.Survival);
             }
         }
 
@@ -518,10 +465,8 @@ public class GriefPrevention extends JavaPlugin
         this.config_claims_enderPearlsRequireAccessTrust = config.getBoolean("GriefPrevention.Claims.EnderPearlsRequireAccessTrust", true);
         this.config_claims_raidTriggersRequireBuildTrust = config.getBoolean("GriefPrevention.Claims.RaidTriggersRequireBuildTrust", true);
         this.config_claims_initialBlocks = config.getInt("GriefPrevention.Claims.InitialBlocks", 100);
-        this.config_claims_blocksAccruedPerHour_default = config.getInt("GriefPrevention.Claims.BlocksAccruedPerHour", 100);
-        this.config_claims_blocksAccruedPerHour_default = config.getInt("GriefPrevention.Claims.Claim Blocks Accrued Per Hour.Default", config_claims_blocksAccruedPerHour_default);
-        this.config_claims_maxAccruedBlocks_default = config.getInt("GriefPrevention.Claims.MaxAccruedBlocks", 80000);
-        this.config_claims_maxAccruedBlocks_default = config.getInt("GriefPrevention.Claims.Max Accrued Claim Blocks.Default", this.config_claims_maxAccruedBlocks_default);
+        this.config_claims_blocksAccruedPerHour_default = config.getInt("GriefPrevention.Claims.Claim Blocks Accrued Per Hour.Default", 100);
+        this.config_claims_maxAccruedBlocks_default = config.getInt("GriefPrevention.Claims.Max Accrued Claim Blocks.Default", 80000);
         this.config_claims_abandonReturnRatio = config.getDouble("GriefPrevention.Claims.AbandonReturnRatio", 1.0D);
         this.config_claims_automaticClaimsForNewPlayersRadius = config.getInt("GriefPrevention.Claims.AutomaticNewPlayerClaimsRadius", 4);
         this.config_claims_automaticClaimsForNewPlayersRadiusMin = Math.max(0, Math.min(this.config_claims_automaticClaimsForNewPlayersRadius,
@@ -2928,45 +2873,6 @@ public class GriefPrevention extends JavaPlugin
     {
         Supplier<String> result = ProtectionHelper.checkPermission(player, location, ClaimPermission.Build, breakEvent);
         return result == null ? null : result.get();
-    }
-
-    private Set<Material> parseMaterialListFromConfig(List<String> stringsToParse)
-    {
-        Set<Material> materials = new HashSet<>();
-
-        //for each string in the list
-        for (int i = 0; i < stringsToParse.size(); i++)
-        {
-            String string = stringsToParse.get(i);
-
-            //defensive coding
-            if (string == null) continue;
-
-            //try to parse the string value into a material
-            Material material = Material.getMaterial(string.toUpperCase());
-
-            //null value returned indicates an error parsing the string from the config file
-            if (material == null)
-            {
-                //check if string has failed validity before
-                if (!string.contains("can't"))
-                {
-                    //update string, which will go out to config file to help user find the error entry
-                    stringsToParse.set(i, string + "     <-- can't understand this entry, see BukkitDev documentation");
-
-                    //warn about invalid material in log
-                    GriefPrevention.AddLogEntry(String.format("ERROR: Invalid material %s.  Please update your config.yml.", string));
-                }
-            }
-
-            //otherwise material is valid, add it
-            else
-            {
-                materials.add(material);
-            }
-        }
-
-        return materials;
     }
 
     public int getSeaLevel(World world)
